@@ -1545,10 +1545,10 @@ class GlobalStateAPI(unittest.TestCase):
     self.assertEqual(found_hi, True)
     ray.worker.cleanup()
 
-
   def testTaskProfileAPI(self):
     ray.worker._init(redirect_output=True, num_local_schedulers=2,
-      start_ray_local=True)
+              start_ray_local=True)
+
     @ray.remote
     def say_hi():
       print("hi")
@@ -1563,6 +1563,7 @@ class GlobalStateAPI(unittest.TestCase):
         found = True
     self.assertEqual(found, True)
     ray.worker.cleanup()
+
 
 if __name__ == "__main__":
   unittest.main(verbosity=2)
