@@ -1514,6 +1514,7 @@ class GlobalStateAPI(unittest.TestCase):
 
     ray.worker.cleanup()
 
+
   def testLogFileAPI(self):
     ray.init(redirect_output=True)
 
@@ -1553,6 +1554,7 @@ class GlobalStateAPI(unittest.TestCase):
       print("hi")
 
     say_hi.remote()
+
     # Make sure that each task executes
     start_time = time.time()
     while time.time() - start_time < 10:

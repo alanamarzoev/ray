@@ -5,8 +5,11 @@ from __future__ import print_function
 import json
 import pickle
 import redis
+<<<<<<< HEAD
 
 import re
+=======
+>>>>>>> a68b8fe3c673d770a4186d36f98a8d460142354e
 import ray
 from ray.utils import (decode, binary_to_object_id, binary_to_hex,
                        hex_to_binary)
@@ -355,4 +358,3 @@ class GlobalState(object):
         else:
           results[task_id] = event_dict
     return results
-
