@@ -19,7 +19,6 @@ Ray
    tutorial.rst
    api.rst
    actors.rst
-   using-ray-with-gpus.rst
 
 .. toctree::
    :maxdepth: 1
