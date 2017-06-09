@@ -355,3 +355,4 @@ class GlobalState(object):
         else:
           results[task_id] = event_dict
     return results
+
