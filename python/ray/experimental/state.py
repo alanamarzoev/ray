@@ -308,6 +308,7 @@ class GlobalState(object):
 
   def task_profiles(self):
     """Fetch and return a list of task profiles.
+
     Returns:
       A list of task profiles.
     """
@@ -326,3 +327,41 @@ class GlobalState(object):
         else:
           results[task_id] = event_dict
     return results
+
+  def parallelization_score(self):
+    """Calculate and return parallelization score.
+
+    Returns:
+      (sum of task durations) / (total number of CPUS * job duration)
+    """
+    event_names = self.redis_client.keys("event_log*")
+    total_exec = 0
+    earliest_start = float("inf")
+    latest_end = -1
+    for i in range(len(event_names)):
+      event_list = self.redis_client.lrange(event_names[i], 0, -1)
+      for event in event_list:
+        event_dict = json.loads(event.decode("ascii"))
+        start_point = event_dict[0][0]
+        end_point = event_dict[len(event_dict)-1][0]
+        if start_point < earliest_start:
+          earliest_start = start_point
+        if end_point > latest_end:
+          latest_end = end_point
+        total_exec += (end_point - start_point)
+    job_dur = latest_end - earliest_start
+    table = self.client_table()
+    total_cpus = 0
+    for key in table.keys():
+      total_cpus += table[key][0]["NumCPUs"]
+    return (total_exec) / (total_cpus * job_dur)
+
+
+
+
+
+
+
+
+
+
