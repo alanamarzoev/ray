@@ -1545,6 +1545,25 @@ class GlobalStateAPI(unittest.TestCase):
     self.assertEqual(found_message, True)
     ray.worker.cleanup()
 
+  def testTaskProfileAPI(self):
+    ray.init(redirect_output=True)
+
+    @ray.remote
+    def say_hi():
+      print("hi")
+
+    say_hi.remote()
+    # Make sure that each task executes
+    start_time = time.time()
+    while time.time() - start_time < 10:
+      profiles = ray.global_state.task_profiles()
+      profile_str = "".join(str(x) for x in profiles)
+      found = False
+      if "ray:task:execute" in profile_str:
+        found = True
+    self.assertEqual(found, True)
+    ray.worker.cleanup()
+
 
 if __name__ == "__main__":
   unittest.main(verbosity=2)
