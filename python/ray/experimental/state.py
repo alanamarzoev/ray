@@ -342,19 +342,27 @@ class GlobalState(object):
       event_list = self.redis_client.lrange(event_names[i], 0, -1)
       for event in event_list:
         event_dict = json.loads(event.decode("ascii"))
-        start_point = event_dict[0][0]
-        end_point = event_dict[len(event_dict)-1][0]
-        if start_point < earliest_start:
-          earliest_start = start_point
-        if end_point > latest_end:
-          latest_end = end_point
+        start_point = 0
+        end_point = 0
+        for element in event_dict:
+          if element[1] == "ray:task:execute" and element[2] == 1:
+            start_point = element[0]
+            if start_point < earliest_start:
+              earliest_start = start_point
+          if element[1] == "ray:task:execute" and element[2] == 2:
+            end_point = element[0]
+            if end_point > latest_end:
+              latest_end = end_point
         total_exec += (end_point - start_point)
     job_dur = latest_end - earliest_start
     table = self.client_table()
     total_cpus = 0
-    for key in table.keys():
-      total_cpus += table[key][0]["NumCPUs"]
-    return (total_exec) / (total_cpus * job_dur)
+    for key, value in table.items():
+      for element in range(len(value)):
+        if "NumCPUs" in value[element]:
+          total_cpus += table[key][element]["NumCPUs"]
+    return (total_exec, total_cpus, job_dur)
+   # return (total_exec) / (total_cpus * job_dur)
 
 
 
