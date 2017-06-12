@@ -169,13 +169,10 @@ if __name__ == "__main__":
   # Update the rmsprop memory.
   rmsprop_cache = {k: np.zeros_like(v) for k, v in model.items()}
   actors = [PongEnv.remote() for _ in range(batch_size)]
-  count = 0
+
   while True:
     model_id = ray.put(model)
     actions = []
-    if count > 3:
-      import IPython
-      IPython.embed()
     # Launch tasks to compute gradients from multiple rollouts in parallel.
     start_time = time.time()
     for i in range(batch_size):
@@ -193,7 +190,6 @@ if __name__ == "__main__":
     print("Batch {} computed {} rollouts in {} seconds, "
           "running mean is {}".format(batch_num, batch_size,
                                       end_time - start_time, running_reward))
-    count += 1
     for k, v in model.items():
       g = grad_buffer[k]
       rmsprop_cache[k] = (decay_rate * rmsprop_cache[k] +
