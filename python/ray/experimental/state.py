@@ -361,8 +361,7 @@ class GlobalState(object):
       for element in range(len(value)):
         if "NumCPUs" in value[element]:
           total_cpus += table[key][element]["NumCPUs"]
-    return (total_exec, total_cpus, job_dur)
-   # return (total_exec) / (total_cpus * job_dur)
+    return (total_exec) / (total_cpus * job_dur)
 
 
 
