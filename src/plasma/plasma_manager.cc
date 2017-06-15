@@ -671,7 +671,7 @@ void send_queued_request(event_loop *loop,
     LOG_DEBUG("Transferring object to manager");
     char id_string[ID_STRING_SIZE];
     ObjectID_to_string(buf->object_id, id_string, ID_STRING_SIZE);
-    std::cout << "MANGER STARTS OBJ SEND: ObjectID: " << id_string << "Datasize: " << buf->data_size << std::endl;
+    std::cout << "MANGER STARTS OBJ SEND: ObjectID: " << id_string << std::endl;
     if (conn->cursor == 0) {
       /* If the cursor is zero, we haven't sent any requests for this object
        * yet, so send the initial data request. */
@@ -1550,9 +1550,6 @@ void process_message(event_loop *loop,
     ObjectID object_id;
     char *address;
     int port;
-    char id_string[ID_STRING_SIZE];
-    ObjectID_to_string(object_id, id_string, ID_STRING_SIZE);
-    std::cout << "RECEIVES TRANSFER REQ: ObjectID: " << id_string << " Addr: " << address << " Port: " << port << std::endl;
     ARROW_CHECK_OK(ReadDataRequest(data, &object_id, &address, &port));
     process_transfer_request(loop, object_id, address, port, conn);
     free(address);
