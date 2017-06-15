@@ -669,6 +669,9 @@ void send_queued_request(event_loop *loop,
     break;
   case MessageType_PlasmaDataReply:
     LOG_DEBUG("Transferring object to manager");
+    char id_string[ID_STRING_SIZE];
+    ObjectID_to_string(buf->object_id, id_string, ID_STRING_SIZE);
+    std::cout << "MANGER STARTS OBJ SEND: ObjectID: " << id_string << "Datasize: " << buf->data_size << std::endl;
     if (conn->cursor == 0) {
       /* If the cursor is zero, we haven't sent any requests for this object
        * yet, so send the initial data request. */
@@ -702,6 +705,9 @@ void send_queued_request(event_loop *loop,
     if (buf->type == MessageType_PlasmaDataReply) {
       /* If we just finished sending an object to a remote manager, then remove
        * the object from the hash table of pending transfer requests. */
+      char id_string[ID_STRING_SIZE];
+      ObjectID_to_string(buf->object_id, id_string, ID_STRING_SIZE);
+      std::cout << "MANAGER FINISHED OBJ SEND: ObjectID: " << id_string << std::endl;
       HASH_DELETE(hh, conn->pending_object_transfers, buf);
     }
     DL_DELETE(conn->transfer_queue, buf);
@@ -749,7 +755,9 @@ void process_data_chunk(event_loop *loop,
   if (!done) {
     return;
   }
-
+  char id_string[ID_STRING_SIZE];
+  ObjectID_to_string(buf->object_id, id_string, ID_STRING_SIZE);
+  std::cout << "MANAGER FINISH RECEIVE: ObjectID: " << id_string << std::endl;
   /* Seal the object and release it. The release corresponds to the call to
    * plasma_create that occurred in process_data_request. */
   LOG_DEBUG("reading on channel %d finished", data_sock);
@@ -905,6 +913,10 @@ void process_data_request(event_loop *loop,
    * process_data_chunk. */
   Status s = conn->manager_state->plasma_conn->Create(
       object_id, data_size, NULL, metadata_size, &(buf->data));
+
+  char id_string[ID_STRING_SIZE];
+  ObjectID_to_string(buf->object_id, id_string, ID_STRING_SIZE);
+  std::cout << "MANAGER BEGINS OBJ RECEIVE: ObjectID: " << id_string << std::endl;
   /* If success_create == true, a new object has been created.
    * If success_create == false the object creation has failed, possibly
    * due to an object with the same ID already existing in the Plasma Store. */
@@ -1538,6 +1550,9 @@ void process_message(event_loop *loop,
     ObjectID object_id;
     char *address;
     int port;
+    char id_string[ID_STRING_SIZE];
+    ObjectID_to_string(object_id, id_string, ID_STRING_SIZE);
+    std::cout << "RECEIVES TRANSFER REQ: ObjectID: " << id_string << " Addr: " << address << " Port: " << port << std::endl;
     ARROW_CHECK_OK(ReadDataRequest(data, &object_id, &address, &port));
     process_transfer_request(loop, object_id, address, port, conn);
     free(address);
@@ -1721,6 +1736,8 @@ int main(int argc, char *argv[]) {
         "specify the primary redis address like 127.0.0.1:6379 with the -r "
         "switch");
   }
+  std::cout << "Reached here" << std::endl;
+  std::cout.flush();
   start_server(store_socket_name, manager_socket_name, master_addr, port,
                redis_primary_addr, redis_primary_port);
 }
