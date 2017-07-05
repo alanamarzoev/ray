@@ -353,7 +353,8 @@ class GlobalState(object):
       start = 0
     if num is None:
       num = sys.maxsize
-
+    earliest = sys.maxsize
+    latest = 0
     task_info = dict()
     event_log_sets = self.redis_client.keys("event_log*")
     '''
@@ -383,6 +384,8 @@ class GlobalState(object):
             # Add task to min heap by its start point.
             heapq.heappush(heap, (task_info[task_id]["get_task_start"], task_id))
             heap_size += 1
+            if task_info[task_id]["get_task_start"] < earliest:
+              earliest = task_info[task_id]["get_task_start"]
           if event[1] == "ray:get_task" and event[2] == 2:
             task_info[task_id]["get_task_end"] = event[0]
           if event[1] == "ray:import_remote_function" and event[2] == 1:
@@ -405,6 +408,8 @@ class GlobalState(object):
             task_info[task_id]["store_outputs_start"] = event[0]
           if event[1] == "ray:task:store_outputs" and event[2] == 2:
             task_info[task_id]["store_outputs_end"] = event[0]
+            if task_info[task_id]["store_outputs_end"] > latest:
+              latest = task_info[task_id]["store_outputs_end"]
           if "worker_id" in event[3]:
             task_info[task_id]["worker_id"] = event[3]["worker_id"]
           if "function_name" in event[3]:
@@ -413,7 +418,7 @@ class GlobalState(object):
           min_task, taskid = heapq.heappop(heap)
           del task_info[taskid]
           heap_size -= 1
-    return task_info
+    return task_info, earliest, latest
 
   def dump_catapult_trace(self, path, start=None, end=None, num=None):
     """Dump task profiling information to a file.
@@ -427,7 +432,7 @@ class GlobalState(object):
     """
     if end is None:
       end = time.time()
-    task_info = self.task_profiles(start=start, end=end, num=num)
+    task_info, earliest, latest = self.task_profiles(start=start, end=end, num=num)
     task_table = self.task_table()
     workers = self.workers()
     start_time = None
@@ -542,3 +547,32 @@ class GlobalState(object):
           "stdout_file": worker_info[b"stdout_file"].decode("ascii")
       }
     return workers_data
+
+  def time_series(self):
+    end = time.time()
+    start = 0
+    granularity = 1
+    tasks, earliest, latest = self.task_profiles(start = 0, end = time.time())
+    print("here")
+    print(tasks)
+    buckets = [0 for _ in range(int((latest - earliest)/granularity))]
+    print('len buckets')
+    print(len(buckets))
+    # print(earliest)
+    # print(latest)
+    # print(granularity)
+    count = 0
+    for x in range(int(earliest), int(latest), int(granularity)):
+      print(count)
+      if count  == len(buckets) - 1:
+        break
+      else:
+        buckets[count] += len(self.task_profiles(start=x, end=(x+granularity)).keys())
+        count += 1
+    return buckets
+
+
+
+
+
+
