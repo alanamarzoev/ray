@@ -14,6 +14,7 @@ import numpy as np
 import os
 import redis
 import signal
+import struct
 import sys
 import threading
 import time
@@ -640,6 +641,7 @@ def error_info(worker=global_worker):
   check_main_thread()
   error_keys = worker.redis_client.lrange("ErrorKeys", 0, -1)
   errors = []
+
   for error_key in error_keys:
     if error_applies_to_driver(error_key, worker=worker):
       error_contents = worker.redis_client.hgetall(error_key)
@@ -1559,10 +1561,11 @@ def log(event_type, kind, contents=None, worker=global_worker):
 
 def flush_log(worker=global_worker):
   """Send the logged worker events to the global state store."""
-  event_log_key = (b"event_log:" + worker.worker_id + b":" +
-                   worker.current_task_id.id())
+  event_log_key = b"event_log:" + worker.worker_id
   event_log_value = json.dumps(worker.events)
-  worker.local_scheduler_client.log_event(event_log_key, event_log_value)
+  worker.local_scheduler_client.log_event(event_log_key,
+                                          event_log_value,
+                                          time.time())
   worker.events = []
 
 
