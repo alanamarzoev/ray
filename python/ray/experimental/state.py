@@ -321,6 +321,7 @@ class GlobalState(object):
     relevant_files = self.redis_client.keys("LOGFILE*")
 
     ip_filename_file = dict()
+    workers = self.workers()
 
     for filename in relevant_files:
       filename = filename.decode("ascii")
@@ -370,7 +371,7 @@ class GlobalState(object):
     # Parse through event logs to determine task start and end points.
     for i in range(len(event_log_sets)):
       event_list = self.redis_client.zrangebyscore(event_log_sets[i], min=start,
-                                                   max=end, start=start, num=num)
+                                                   max=end, start=0, num=num)
       for event in event_list:
         event_dict = ujson.loads(event)
         task_id = ""
@@ -548,31 +549,87 @@ class GlobalState(object):
       }
     return workers_data
 
-  def time_series(self):
+
+  def heat_map(self):
     end = time.time()
     start = 0
     granularity = 1
-    tasks, earliest, latest = self.task_profiles(start = 0, end = time.time())
-    print("here")
-    print(tasks)
-    buckets = [0 for _ in range(int((latest - earliest)/granularity))]
-    print('len buckets')
-    print(len(buckets))
-    # print(earliest)
-    # print(latest)
-    # print(granularity)
+    tasks, earliest, latest = self.task_profiles(start=0, end=time.time())
+    # print("earliest " + str(earliest))
+    # print("latest " + str(latest))
+    # print("granularity" + str(granularity))
+    buckets = [0 for _ in range(int((int(latest) - int(earliest))/granularity))]
+    worker_info = self.workers()
+    num_tasks = []
+    nodes = []
+    times = []
     count = 0
-    for x in range(int(earliest), int(latest), int(granularity)):
-      print(count)
-      if count  == len(buckets) - 1:
+    start_point = 0
+    end_point = 0
+    for x in range(1, len(buckets)+1, granularity):
+      if count  == len(buckets):
         break
       else:
-        buckets[count] += len(self.task_profiles(start=x, end=(x+granularity)).keys())
+        start = (x * granularity) + earliest
+        if x == 1:
+          start_point = start
+        end= ((x + 1) * granularity) + earliest
+        if count == len(buckets)-1:
+          end_point = end
+        t, e, l = self.task_profiles(start=start, end=end)
+        node_to_num = dict()
+        for task_id, data in t.items():
+          worker = data["worker_id"]
+          node = worker_info[worker]["node_ip_address"]
+          if node not in node_to_num:
+            node_to_num[node] = 0
+          node_to_num[node] += 1
+        for node_ip, counter in node_to_num.items():
+          num_tasks.append(node_to_num[node_ip])
+          nodes.append(node_ip)
+          times.append(x)
         count += 1
-    return buckets
+    return nodes, times, num_tasks
 
+  def error_info(self):
+    """Return information about failed tasks."""
 
+    event_log_sets = self.redis_client.keys("event_log*")
+    error_profiles = dict()
+    task_info = self.task_table()
+    task_profiles, e, l = self.task_profiles(start=0, end=time.time())
+    for i in range(len(event_log_sets)):
+      event_list = self.redis_client.zrangebyscore(event_log_sets[i], min=0,
+                                                   max=time.time())
+      for event in event_list:
+        event_dict = ujson.loads(event)
+        for event in event_list:
+          event_dict = json.loads(event)
+          task_id = ""
+          traceback = ""
+          worker_id = ""
+          start_time = -1
+          function_name = ""
+          function_id = ""
+          for element in event_dict:
+            if element[1] == "ray:task:execute" and element[2] == 1:
+                start_time = element[0]
+            if "task_id" in element[3] and "worker_id" in element[3]:
+                task_id = element[3]["task_id"]
+                worker_id = element[3]["worker_id"]
+                function_name = task_profiles[task_id]["function_name"]
+                function_id = task_info[task_id]["TaskSpec"]["FunctionID"]
+            if "traceback" in element[3]:
+                traceback = element[3]["traceback"]
+            if task_id != "" and worker_id != "" and traceback != "":
+                if start_time != -1:
+                    error_profiles[task_id] = dict()
+                    error_profiles[task_id]["worker_id"] = worker_id
+                    error_profiles[task_id]["traceback"] = traceback
+                    error_profiles[task_id]["start_time"] = start_time
+                    error_profiles[task_id]["function_name"] = function_name
+                    error_profiles[task_id]["function_id"] = function_id
 
-
+    return error_profiles
 
 
