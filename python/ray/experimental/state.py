@@ -471,28 +471,17 @@ class GlobalState(object):
         }
         full_trace.append(parent_trace)
 
-        parent = {
+        task_trace = {
             "cat": "submit_task",
-            "pid": "Node " + str(parent_worker["node_ip_address"]),
-            "tid": parent_info["worker_id"],
-            "ts": micros(min(parent_times)),
-            "ph": "s",
+            "pid": "Node " + str(worker["node_ip_address"]),
+            "tid": info["worker_id"],
+            "ts": (info["get_arguments_start"]),
+            "ph": "f",
             "name": "SubmitTask",
             "args": {},
             "id": str(worker)
         }
-        full_trace.append(parent)
-
-      task_trace = {
-          "cat": "submit_task",
-          "pid": "Node " + str(worker["node_ip_address"]),
-          "tid": info["worker_id"],
-          "ts": (info["get_arguments_start"]),
-          "ph": "f",
-          "name": "SubmitTask",
-          "args": {},
-          "id": str(worker)
-      }
+        full_trace.append(task_trace)
 
       if "get_arguments_end" in info:
         get_args_trace = {
