@@ -167,7 +167,12 @@ if __name__ == "__main__":
   # Update the rmsprop memory.
   rmsprop_cache = {k: np.zeros_like(v) for k, v in model.items()}
   actors = [PongEnv.remote() for _ in range(batch_size)]
+  count = 0
   while True:
+    count += 1
+    if count == 9:
+      while True:
+        time.sleep(1)
     model_id = ray.put(model)
     actions = []
     # Launch tasks to compute gradients from multiple rollouts in parallel.

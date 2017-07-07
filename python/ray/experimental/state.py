@@ -431,10 +431,12 @@ class GlobalState(object):
     Args:
       path: The filepath to dump the profiling information to.
     """
+
+    # TO DO - convert info to deltas
+
     if end is None:
       end = time.time()
     task_info, earliest, latest = self.task_profiles(start=start, end=end, num=num)
-    task_table = self.task_table()
     workers = self.workers()
     start_time = None
     for info in task_info.values():
@@ -447,11 +449,13 @@ class GlobalState(object):
 
     full_trace = []
     for task_id, info in task_info.items():
+      info["task_id"] = task_id
       taskid = ray.local_scheduler.ObjectID(hex_to_binary(task_id))
       task_data = self._task_table(taskid)
       parent_info = task_info.get(task_data["TaskSpec"]["ParentTaskID"])
       times = self._get_times(info)
       worker = workers[info["worker_id"]]
+
       if parent_info:
         parent_worker = workers[parent_info["worker_id"]]
         parent_times = self._get_times(parent_info)
@@ -483,28 +487,59 @@ class GlobalState(object):
           "cat": "submit_task",
           "pid": "Node " + str(worker["node_ip_address"]),
           "tid": info["worker_id"],
-          "ts": micros(min(times)),
+          "ts": (info["get_arguments_start"]),
           "ph": "f",
           "name": "SubmitTask",
           "args": {},
           "id": str(worker)
       }
-      full_trace.append(task_trace)
 
-      task = {
-          "name": info["function_name"],
-          "cat": "ray_task",
-          "ph": "X",
-          "ts": micros(min(times)),
-          "dur": micros(max(times)) - micros(min(times)),
-          "pid": "Node " + str(worker["node_ip_address"]),
-          "tid": info["worker_id"],
-          "args": info
-      }
-      full_trace.append(task)
+      if "get_arguments_end" in info:
+        get_args_trace = {
+            "cat": "get_arguments",
+            "pid": "Node " + str(worker["node_ip_address"]),
+            "tid": info["worker_id"],
+            "id": str(worker),
+            "ts": (info["get_arguments_start"]),
+            "ph": "X",
+            "name": info["function_name"] + ":get_arguments",
+            "args": info,
+            "dur": info["get_arguments_end"] - info["get_arguments_start"]
+        }
+        full_trace.append(get_args_trace)
+
+      if "store_outputs_end" in info:
+        outputs_trace = {
+            "cat": "store_outputs",
+            "pid": "Node " + str(worker["node_ip_address"]),
+            "tid": info["worker_id"],
+            "id": str(worker),
+            "ts": (info["store_outputs_start"]),
+            "ph": "X",
+            "name": info["function_name"] + ":store_outputs",
+            "args": info,
+            "dur": info["store_outputs_end"] - info["store_outputs_start"]
+        }
+        full_trace.append(outputs_trace)
+
+      if "execute_end" in info:
+        execute_trace = {
+            "cat": "execute",
+            "pid": "Node " + str(worker["node_ip_address"]),
+            "tid": info["worker_id"],
+            "id": str(worker),
+            "ts": (info["execute_start"]),
+            "ph": "X",
+            "name": info["function_name"] + ":execute",
+            "args": info,
+            "dur": info["execute_end"] - info["execute_start"]
+        }
+        full_trace.append(execute_trace)
+
 
     with open(path, "w") as outfile:
       ujson.dump(full_trace, outfile)
+
 
   def _get_times(self, data):
     """Extract the numerical times from a task profile.
@@ -549,6 +584,32 @@ class GlobalState(object):
       }
     return workers_data
 
+  def time_series(self):
+    end = time.time()
+    start = 0
+    granularity = 1
+    tasks, earliest, latest = self.task_profiles(start=0, end=time.time())
+    # print("earliest " + str(earliest))
+    # print("latest " + str(latest))
+    # print("granularity" + str(granularity))
+    buckets = [0 for _ in range(int((int(latest) - int(earliest))/granularity))]
+    count = 0
+    start_point = 0
+    end_point = 0
+    for x in range(1, len(buckets)+1, granularity):
+      if count  == len(buckets):
+        break
+      else:
+        start = (x * granularity) + earliest
+        if x == 1:
+          start_point = start
+        end= ((x + 1) * granularity) + earliest
+        if count == len(buckets)-1:
+          end_point = end
+        t, e, l = ray.global_state.task_profiles(start=start, end=end)
+        buckets[count] += len(t)
+        count += 1
+    return buckets, start_point, end_point, granularity
 
   def heat_map(self):
     end = time.time()
