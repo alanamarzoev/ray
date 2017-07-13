@@ -52,9 +52,9 @@ TASK_STATUS_MAPPING = {
 class GlobalState(object):
   """A class used to interface with the Ray control state.
 
- Attributes:
-   redis_client: The redis client used to query the redis server.
- """
+Attributes:
+  redis_client: The redis client used to query the redis server.
+"""
   def __init__(self):
     """Create a GlobalState object."""
     self.redis_client = None
@@ -62,9 +62,9 @@ class GlobalState(object):
   def _check_connected(self):
     """Check that the object has been initialized before it is used.
 
-   Raises:
-     Exception: An exception is raised if ray.init() has not been called yet.
-   """
+  Raises:
+    Exception: An exception is raised if ray.init() has not been called yet.
+  """
     if self.redis_client is None:
       raise Exception("The ray.global_state API cannot be used before "
                       "ray.init has been called.")
@@ -72,11 +72,11 @@ class GlobalState(object):
   def _initialize_global_state(self, redis_ip_address, redis_port):
     """Initialize the GlobalState object by connecting to Redis.
 
-   Args:
-     redis_ip_address: The IP address of the node that the Redis server lives
-       on.
-     redis_port: The port that the Redis server is listening on.
-   """
+  Args:
+    redis_ip_address: The IP address of the node that the Redis server lives
+      on.
+    redis_port: The port that the Redis server is listening on.
+  """
     self.redis_client = redis.StrictRedis(host=redis_ip_address,
                                           port=redis_port)
     self.redis_clients = []
@@ -101,13 +101,13 @@ class GlobalState(object):
   def _execute_command(self, key, *args):
     """Execute a Redis command on the appropriate Redis shard based on key.
 
-   Args:
-     key: The object ID or the task ID that the query is about.
-     args: The command to run.
+  Args:
+    key: The object ID or the task ID that the query is about.
+    args: The command to run.
 
-   Returns:
-     The value returned by the Redis command.
-   """
+  Returns:
+    The value returned by the Redis command.
+  """
     client = self.redis_clients[key.redis_shard_hash() %
                                 len(self.redis_clients)]
     return client.execute_command(*args)
@@ -115,12 +115,12 @@ class GlobalState(object):
   def _keys(self, pattern):
     """Execute the KEYS command on all Redis shards.
 
-   Args:
-     pattern: The KEYS pattern to query.
+  Args:
+    pattern: The KEYS pattern to query.
 
-   Returns:
-     The concatenated list of results from all shards.
-   """
+  Returns:
+    The concatenated list of results from all shards.
+  """
     result = []
     for client in self.redis_clients:
       result.extend(client.keys(pattern))
@@ -129,13 +129,13 @@ class GlobalState(object):
   def _object_table(self, object_id):
     """Fetch and parse the object table information for a single object ID.
 
-   Args:
-     object_id_binary: A string of bytes with the object ID to get information
-       about.
+  Args:
+    object_id_binary: A string of bytes with the object ID to get information
+      about.
 
-   Returns:
-     A dictionary with information about the object ID in question.
-   """
+  Returns:
+    A dictionary with information about the object ID in question.
+  """
     # Allow the argument to be either an ObjectID or a hex string.
     if not isinstance(object_id, ray.local_scheduler.ObjectID):
       object_id = ray.local_scheduler.ObjectID(hex_to_binary(object_id))
@@ -167,14 +167,14 @@ class GlobalState(object):
   def object_table(self, object_id=None):
     """Fetch and parse the object table information for one or more object IDs.
 
-   Args:
-     object_id: An object ID to fetch information about. If this is None, then
-       the entire object table is fetched.
+  Args:
+    object_id: An object ID to fetch information about. If this is None, then
+      the entire object table is fetched.
 
 
-   Returns:
-     Information from the object table.
-   """
+  Returns:
+    Information from the object table.
+  """
     self._check_connected()
     if object_id is not None:
       # Return information about a single object ID.
@@ -195,15 +195,15 @@ class GlobalState(object):
   def _task_table(self, task_id):
     """Fetch and parse the task table information for a single object task ID.
 
-   Args:
-     task_id_binary: A string of bytes with the task ID to get information
-       about.
+  Args:
+    task_id_binary: A string of bytes with the task ID to get information
+      about.
 
-   Returns:
-     A dictionary with information about the task ID in question.
-     TASK_STATUS_MAPPING should be used to parse the "State" field into a
-     human-readable string.
-   """
+  Returns:
+    A dictionary with information about the task ID in question.
+    TASK_STATUS_MAPPING should be used to parse the "State" field into a
+    human-readable string.
+  """
     task_table_response = self._execute_command(task_id,
                                                 "RAY.TASK_TABLE_GET",
                                                 task_id.id())
@@ -244,14 +244,14 @@ class GlobalState(object):
   def task_table(self, task_id=None):
     """Fetch and parse the task table information for one or more task IDs.
 
-   Args:
-     task_id: A hex string of the task ID to fetch information about. If this
-       is None, then the task object table is fetched.
+  Args:
+    task_id: A hex string of the task ID to fetch information about. If this
+      is None, then the task object table is fetched.
 
 
-   Returns:
-     Information from the task table.
-   """
+  Returns:
+    Information from the task table.
+  """
     self._check_connected()
     if task_id is not None:
       task_id = ray.local_scheduler.ObjectID(hex_to_binary(task_id))
@@ -268,9 +268,9 @@ class GlobalState(object):
   def function_table(self, function_id=None):
     """Fetch and parse the function table.
 
-   Returns:
-     A dictionary that maps function IDs to information about the function.
-   """
+  Returns:
+    A dictionary that maps function IDs to information about the function.
+  """
     self._check_connected()
     function_table_keys = self.redis_client.keys(FUNCTION_PREFIX + "*")
     results = {}
@@ -287,9 +287,9 @@ class GlobalState(object):
   def client_table(self):
     """Fetch and parse the Redis DB client table.
 
-   Returns:
-     Information about the Ray clients in the cluster.
-   """
+  Returns:
+    Information about the Ray clients in the cluster.
+  """
     self._check_connected()
     db_client_keys = self.redis_client.keys(DB_CLIENT_PREFIX + "*")
     node_info = dict()
@@ -319,9 +319,9 @@ class GlobalState(object):
   def log_files(self):
     """Fetch and return a dictionary of log file names to outputs.
 
-   Returns:
-     IP address to log file name to log file contents mappings.
-   """
+  Returns:
+    IP address to log file name to log file contents mappings.
+  """
     relevant_files = self.redis_client.keys("LOGFILE*")
 
     ip_filename_file = dict()
@@ -344,20 +344,20 @@ class GlobalState(object):
 
     return ip_filename_file
 
-  def task_profiles(self, start=None, end=None, num=None, longest=False):
+  def task_profiles(self, start=None, end=None, num_slice=None, fwd=True):
     """Fetch and return a list of task profiles.
 
-   Args:
-     start: The start point of the time window that is queried for tasks.
-     end: The end point in time of the time window that is queried for tasks.
-     num: A limit on the number of tasks that task_profiles will return.
+  Args:
+    start: The start point of the time window that is queried for tasks.
+    end: The end point in time of the time window that is queried for tasks.
+    num: A limit on the number of tasks that task_profiles will return.
 
-   Returns:
-     A tuple of two elements. The first element is a dictionary mapping the
-       task ID of a task to a list of the profiling information for all of the
-       executions of that task. The second element is a list of profiling
-       information for tasks where the events have no task ID.
-   """
+  Returns:
+    A tuple of two elements. The first element is a dictionary mapping the
+      task ID of a task to a list of the profiling information for all of the
+      executions of that task. The second element is a list of profiling
+      information for tasks where the events have no task ID.
+  """
 
     task_info = dict()
     event_log_sets = self.redis_client.keys("event_log*")
@@ -368,148 +368,113 @@ class GlobalState(object):
     # each task. Calling heappop will result in the taks with the earliest
     # "get_task_start" to be removed from the heap.
 
-    heap = []
-    heapq.heapify(heap)
-    heap_size = 0
+    # don't maintain the heap if we're not slicing some number
+    if num_slice is not None:
+      heap = []
+      heapq.heapify(heap)
+      heap_size = 0
 
-    # longest_running = []
-    # heapq.heapify(longest_running)\
-    # lr_size = 0
+    # set up a param dict to pass the redis command
+    params = {'withscores': True}
+    if start is not None:
+      params['min'] = start
+    elif end is not None:
+      params['min'] = 0
 
-    if start is None and end is None and num is not None:
-      for i in range(len(event_log_sets)-1, -1, -1):
-        event_list = self.redis_client.zrangebyscore(event_log_sets[i],
-                                                   min=0,
-                                                   max=time.time(),
-                                                   start=0,
-                                                   num=-num,
-                                                   withscores=True)
-        for (event, score) in event_list:
-          event_dict = ujson.loads(event)
-          task_id = ""
-          for event in event_dict:
-            if "task_id" in event[3]:
-              task_id = event[3]["task_id"]
-          task_info[task_id] = dict()
-          task_info[task_id]["score"] = score
-          # Add task to __max__ heap by its start point.
-          heapq.heappush(heap, (score, task_id))
-          heap_size += 1
-          for event in event_dict:
-            if event[1] == "ray:get_task" and event[2] == 1:
-              task_info[task_id]["get_task_start"] = event[0]
-            if event[1] == "ray:get_task" and event[2] == 2:
-              task_info[task_id]["get_task_end"] = event[0]
-            if event[1] == "ray:import_remote_function" and event[2] == 1:
-              task_info[task_id]["import_remote_start"] = event[0]
-            if event[1] == "ray:import_remote_function" and event[2] == 2:
-              task_info[task_id]["import_remote_end"] = event[0]
-            if event[1] == "ray:acquire_lock" and event[2] == 1:
-              task_info[task_id]["acquire_lock_start"] = event[0]
-            if event[1] == "ray:acquire_lock" and event[2] == 2:
-              task_info[task_id]["acquire_lock_end"] = event[0]
-            if event[1] == "ray:task:get_arguments" and event[2] == 1:
-              task_info[task_id]["get_arguments_start"] = event[0]
-            if event[1] == "ray:task:get_arguments" and event[2] == 2:
-              task_info[task_id]["get_arguments_end"] = event[0]
-            if event[1] == "ray:task:execute" and event[2] == 1:
-              task_info[task_id]["execute_start"] = event[0]
-            if event[1] == "ray:task:execute" and event[2] == 2:
-              task_info[task_id]["execute_end"] = event[0]
-            if event[1] == "ray:task:store_outputs" and event[2] == 1:
-              task_info[task_id]["store_outputs_start"] = event[0]
-            if event[1] == "ray:task:store_outputs" and event[2] == 2:
-              task_info[task_id]["store_outputs_end"] = event[0]
-            if "worker_id" in event[3]:
-              task_info[task_id]["worker_id"] = event[3]["worker_id"]
-            if "function_name" in event[3]:
-              task_info[task_id]["function_name"] = event[3]["function_name"]
+    if end is not None:
+      params['max'] = end
+    elif start is not None:
+      params['max'] = time.time()
 
+    if num_slice is not None:
+      if start is None and end is None:
+        params['start'] = 0
+        params['end'] = num_slice - 1
+      else:
+        params['num'] = num_slice
 
-          if heap_size == num:
-            return task_info
-
+    if start is None and end is None:
+      if fwd:
+        redis_func = lambda s: self.redis_client.zrange(s, **params)
+      else:
+        redis_func = lambda s: self.redis_client.zrevrange(s, **params)
     else:
-      if start is None:
-        start = 0
-      if end is None:
-        end = time.time()
-      if num is None:
-        num = sys.maxsize
+      if fwd:
+        redis_func = lambda s: self.redis_client.zrangebyscore(s, **params)
+      else:
+        redis_func = lambda s: self.redis_client.zrevrangebyscore(s, **params)
 
-      # Parse through event logs to determine task start and end points.
-      for i in range(len(event_log_sets)):
-        event_list = self.redis_client.zrangebyscore(event_log_sets[i],
-                                                     min=start,
-                                                     max=end,
-                                                     start=0,
-                                                     num=-num,
-                                                     withscores=True)
-        for (event, score) in event_list:
-          event_dict = ujson.loads(event)
-          task_id = ""
-          for event in event_dict:
-            if "task_id" in event[3]:
-              task_id = event[3]["task_id"]
-          task_info[task_id] = dict()
-          task_info[task_id]["score"] = score
-          # Add task to __max__ heap by its start point.
-          heapq.heappush(heap, (score, task_id))
+    # Parse through event logs to determine task start and end points.
+    for event_log_set in event_log_sets:
+      event_list = redis_func(event_log_set)
+
+      for (event, score) in event_list:
+        event_dict = ujson.loads(event)
+        task_id = ""
+        for event in event_dict:
+          if "task_id" in event[3]:
+            task_id = event[3]["task_id"]
+        task_info[task_id] = dict()
+        task_info[task_id]["score"] = score
+        # Add task to (min/max) heap by its start point.
+        # if fwd, we want to delete the largest elements, so -score
+        if num_slice is not None:
+          heapq.heappush(heap, (-score if fwd else score, task_id))
           heap_size += 1
-          for event in event_dict:
-            if event[1] == "ray:get_task" and event[2] == 1:
-              task_info[task_id]["get_task_start"] = event[0]
-            if event[1] == "ray:get_task" and event[2] == 2:
-              task_info[task_id]["get_task_end"] = event[0]
-            if event[1] == "ray:import_remote_function" and event[2] == 1:
-              task_info[task_id]["import_remote_start"] = event[0]
-            if event[1] == "ray:import_remote_function" and event[2] == 2:
-              task_info[task_id]["import_remote_end"] = event[0]
-            if event[1] == "ray:acquire_lock" and event[2] == 1:
-              task_info[task_id]["acquire_lock_start"] = event[0]
-            if event[1] == "ray:acquire_lock" and event[2] == 2:
-              task_info[task_id]["acquire_lock_end"] = event[0]
-            if event[1] == "ray:task:get_arguments" and event[2] == 1:
-              task_info[task_id]["get_arguments_start"] = event[0]
-            if event[1] == "ray:task:get_arguments" and event[2] == 2:
-              task_info[task_id]["get_arguments_end"] = event[0]
-            if event[1] == "ray:task:execute" and event[2] == 1:
-              task_info[task_id]["execute_start"] = event[0]
-            if event[1] == "ray:task:execute" and event[2] == 2:
-              task_info[task_id]["execute_end"] = event[0]
-            if event[1] == "ray:task:store_outputs" and event[2] == 1:
-              task_info[task_id]["store_outputs_start"] = event[0]
-            if event[1] == "ray:task:store_outputs" and event[2] == 2:
-              task_info[task_id]["store_outputs_end"] = event[0]
-            if "worker_id" in event[3]:
-              task_info[task_id]["worker_id"] = event[3]["worker_id"]
-            if "function_name" in event[3]:
-              task_info[task_id]["function_name"] = event[3]["function_name"]
-          if heap_size > num:
-            min_task, task_id_hex = heapq.heappop(heap)
-            del task_info[task_id_hex]
-            heap_size -= 1
-      return task_info
+
+        for event in event_dict:
+          if event[1] == "ray:get_task" and event[2] == 1:
+            task_info[task_id]["get_task_start"] = event[0]
+          if event[1] == "ray:get_task" and event[2] == 2:
+            task_info[task_id]["get_task_end"] = event[0]
+          if event[1] == "ray:import_remote_function" and event[2] == 1:
+            task_info[task_id]["import_remote_start"] = event[0]
+          if event[1] == "ray:import_remote_function" and event[2] == 2:
+            task_info[task_id]["import_remote_end"] = event[0]
+          if event[1] == "ray:acquire_lock" and event[2] == 1:
+            task_info[task_id]["acquire_lock_start"] = event[0]
+          if event[1] == "ray:acquire_lock" and event[2] == 2:
+            task_info[task_id]["acquire_lock_end"] = event[0]
+          if event[1] == "ray:task:get_arguments" and event[2] == 1:
+            task_info[task_id]["get_arguments_start"] = event[0]
+          if event[1] == "ray:task:get_arguments" and event[2] == 2:
+            task_info[task_id]["get_arguments_end"] = event[0]
+          if event[1] == "ray:task:execute" and event[2] == 1:
+            task_info[task_id]["execute_start"] = event[0]
+          if event[1] == "ray:task:execute" and event[2] == 2:
+            task_info[task_id]["execute_end"] = event[0]
+          if event[1] == "ray:task:store_outputs" and event[2] == 1:
+            task_info[task_id]["store_outputs_start"] = event[0]
+          if event[1] == "ray:task:store_outputs" and event[2] == 2:
+            task_info[task_id]["store_outputs_end"] = event[0]
+          if "worker_id" in event[3]:
+            task_info[task_id]["worker_id"] = event[3]["worker_id"]
+          if "function_name" in event[3]:
+            task_info[task_id]["function_name"] = event[3]["function_name"]
+
+        if num_slice is not None and heap_size > num_slice:
+          min_task, task_id_hex = heapq.heappop(heap)
+          del task_info[task_id_hex]
+          heap_size -= 1
+
+    return task_info
 
   def dump_catapult_trace(self,
                           path,
-                          start=None,
-                          end=None,
-                          num=None,
+                          task_info,
                           breakdowns=False):
     """Dump task profiling information to a file.
 
-   This information can be viewed as a timeline of profiling information by
-   going to chrome://tracing in the chrome web browser and loading the
-   appropriate file.
+  This information can be viewed as a timeline of profiling information by
+  going to chrome://tracing in the chrome web browser and loading the
+  appropriate file.
 
-   Args:
-     path: The filepath to dump the profiling information to.
-   """
+  Args:
+    path: The filepath to dump the profiling information to.
+  """
 
     # TO DO - convert info to deltas
 
-    task_info = self.task_profiles(start=start, end=end, num=num)
     workers = self.workers()
     start_time = None
     for info in task_info.values():
@@ -593,18 +558,19 @@ class GlobalState(object):
           full_trace.append(task)
 
 
+    print('dumping {}/{}'.format(len(full_trace), len(task_info)))
     with open(path, "w") as outfile:
       ujson.dump(full_trace, outfile)
 
   def _get_times(self, data):
     """Extract the numerical times from a task profile.
 
-   This is a helper method for dump_catapult_trace.
+  This is a helper method for dump_catapult_trace.
 
-   Args:
-     data: This must be a value in the dictionary returned by the
-       task_profiles function.
-   """
+  Args:
+    data: This must be a value in the dictionary returned by the
+      task_profiles function.
+  """
     all_times = []
     all_times.append(data["acquire_lock_start"])
     all_times.append(data["acquire_lock_end"])
@@ -644,18 +610,65 @@ class GlobalState(object):
     overall_smallest = sys.maxsize
     overall_largest = 0
     num_tasks = 0
+    for event_log_set in event_log_sets:
+      fwd_range = self.redis_client.zrange(event_log_set,
+                                           start=0,
+                                           end=0,
+                                           withscores=True)
+      overall_smallest = min(overall_smallest, fwd_range[0][1])
+
+      rev_range = self.redis_client.zrevrange(event_log_set,
+                                           start=0,
+                                           end=0,
+                                           withscores=True)
+      overall_largest = max(overall_largest, rev_range[0][1])
+
+      num_tasks += self.redis_client.zcount(event_log_set,
+                                       min=0,
+                                       max=time.time())
+
+    return overall_smallest, overall_largest, num_tasks
+
+  def error_info(self, start=None, end=None):
+    """Return information about failed tasks."""
+    if start is None:
+      start = 0
+    if end is None:
+      end = time.time()
+    event_log_sets = self.redis_client.keys("event_log*")
+    error_profiles = dict()
+    task_info = self.task_table()
+    task_profiles = self.task_profiles(start=start, end=end)
     for i in range(len(event_log_sets)):
       event_list = self.redis_client.zrangebyscore(event_log_sets[i],
-                                                     min=0,
-                                                     max=time.time(),
-                                                     start=0,
-                                                     num=sys.maxsize,
-                                                     withscores=True)
-      num_tasks += len(event_list)
-      largest = max(event_list,key=lambda item:item[1])[1]
-      smallest = min(event_list,key=lambda item:item[1])[1]
-      if largest > overall_largest:
-        overall_largest = largest
-      if smallest < overall_smallest:
-        overall_smallest = smallest
-    return overall_smallest, overall_largest, num_tasks
+                                                   min=start,
+                                                   max=end)
+      for event in event_list:
+        event_dict = json.loads(event)
+        for event in event_list:
+          event_dict = json.loads(event)
+          task_id = ""
+          traceback = ""
+          worker_id = ""
+          start_time = -1
+          function_name = ""
+          function_id = ""
+          for element in event_dict:
+            if element[1] == "ray:task:execute" and element[2] == 1:
+                start_time = element[0]
+            if "task_id" in element[3] and "worker_id" in element[3]:
+              task_id = element[3]["task_id"]
+              worker_id = element[3]["worker_id"]
+              function_name = task_profiles[task_id]["function_name"]
+              function_id = task_info[task_id]["TaskSpec"]["FunctionID"]
+            if "traceback" in element[3]:
+                traceback = element[3]["traceback"]
+            if task_id != "" and worker_id != "" and traceback != "":
+              if start_time != -1:
+                error_profiles[task_id] = dict()
+                error_profiles[task_id]["worker_id"] = worker_id
+                error_profiles[task_id]["traceback"] = traceback
+                error_profiles[task_id]["start_time"] = start_time
+                error_profiles[task_id]["function_name"] = function_name
+                error_profiles[task_id]["function_id"] = function_id
+    return error_profiles
