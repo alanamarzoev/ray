@@ -484,7 +484,12 @@ class GlobalState(object):
 
         return task_info
 
-    def dump_catapult_trace(self, path, task_info, breakdowns=False):
+    def dump_catapult_trace(self,
+                            path,
+                            task_info,
+                            breakdowns=False,
+                            edges=None,
+                            objects=None):
         """Dump task profiling information to a file.
 
         This information can be viewed as a timeline of profiling information
@@ -584,6 +589,49 @@ class GlobalState(object):
                 }
                 full_trace.append(task)
 
+        if objects is not None:
+            import time
+            task_profiles = self.task_profiles(start=0, end=time.time())
+            for obj_id, data in objects.items():
+                task_id = data["task_id"]
+                object_trace = {
+                  "cat": "object",
+                  "pid": "Objects",
+                  "tid": str(obj_id),
+                  "id": str(obj_id),
+                  "ts": micros_rel(data["start"]),
+                  "ph": "X",
+                  "name": str(obj_id),
+                  "args": data,
+                  "dur": micros(task_profiles[task_id]["store_outputs_end"] -
+                                task_profiles[task_id]["get_arguments_start"])
+                }
+                full_trace.append(object_trace)
+
+                obj_s = {
+                    "cat": "object",
+                    "pid": str(task_profiles[task_id]["worker_id"]),
+                    "tid": str(task_profiles[task_id]["worker_id"]),
+                    "ts": micros_rel(task_profiles[task_id]["store_outputs_end"]),
+                    "ph": "s",
+                    "name": "SubmitObject",
+                    "args": {},
+                    "id": str(task_profiles[task_id]["worker_id"])
+                }
+                full_trace.append(obj_s)
+
+                obj_e = {
+                  "cat": "object",
+                  "pid": "Objects",
+                  "tid": str(obj_id),
+                  "ts": micros_rel(data["start"]),
+                  "ph": "f",
+                  "name": "SubmitTask",
+                  "args": {},
+                  "id": str(obj_id)
+                  }
+                full_trace.append(obj_e)
+
         print("dumping {}/{}".format(len(full_trace), len(task_info)))
         with open(path, "w") as outfile:
             json.dump(full_trace, outfile)
@@ -656,3 +704,49 @@ class GlobalState(object):
         if num_tasks is 0:
             return 0, 0, 0
         return overall_smallest, overall_largest, num_tasks
+
+    def computation_graph(self, task_id=None, recurse=True):
+      nodes = dict()
+      edges = []
+      objects = dict()
+
+      task_profiles = ray.global_state.task_profiles(start=0,end=time.time())
+      task_table = ray.global_state.task_table()
+
+      if task_id not in task_table:
+          raise ValueError("There does not exist a task with this ID.")
+
+      try:
+        queue = []
+        while task_id not in nodes:
+          print("here")
+          def add_objects(task_id):
+            objs = [oid.hex() for oid in task_table[task_id]["TaskSpec"]["ReturnObjectIDs"]]
+            for obj in objs:
+                print(obj)
+                objects[str(obj)] = dict()
+                objects[str(obj)]["start"] = task_profiles[task_id]["get_arguments_start"]
+                objects[str(obj)]["task_id"] = task_id
+                edges.append((task_id, obj))
+          add_objects(task_id)
+          queue.append(task_id)
+          parent_id = task_table[task_id]["TaskSpec"]["ParentTaskID"]
+          if parent_id in task_profiles:
+            edges.append((task_id, parent_id))
+            if recurse:
+              for task, data in task_table.items():
+                if task not in nodes:
+                  if data["TaskSpec"]["ParentTaskID"] is parent_id:
+                    queue.append(task)
+                    add_objects(task)
+          task_id = parent_id
+          for task in queue:
+            nodes[task] = task_profiles[task]
+
+      except KeyError:
+          pass
+
+      return nodes, objects, edges
+
+
+
