@@ -535,7 +535,7 @@ class GlobalState(object):
                         "cat": "get_arguments",
                         "pid": "Node " + str(worker["node_ip_address"]),
                         "tid": info["worker_id"],
-                        "id": str(worker),
+                        "id": str(task_id),
                         "ts": micros_rel(info["get_arguments_start"]),
                         "ph": "X",
                         "name": info["function_name"] + ":get_arguments",
@@ -550,7 +550,7 @@ class GlobalState(object):
                         "cat": "store_outputs",
                         "pid": "Node " + str(worker["node_ip_address"]),
                         "tid": info["worker_id"],
-                        "id": str(worker),
+                        "id": str(task_id),
                         "ts": micros_rel(info["store_outputs_start"]),
                         "ph": "X",
                         "name": info["function_name"] + ":store_outputs",
@@ -565,7 +565,7 @@ class GlobalState(object):
                         "cat": "execute",
                         "pid": "Node " + str(worker["node_ip_address"]),
                         "tid": info["worker_id"],
-                        "id": str(worker),
+                        "id": str(task_id),
                         "ts": micros_rel(info["execute_start"]),
                         "ph": "X",
                         "name": info["function_name"] + ":execute",
@@ -579,7 +579,7 @@ class GlobalState(object):
                   "cat": "task",
                   "pid": "Node " + str(worker["node_ip_address"]),
                   "tid": info["worker_id"],
-                  "id": str(worker),
+                  "id": str(task_id),
                   "ts": micros_rel(info["get_arguments_start"]),
                   "ph": "X",
                   "name": info["function_name"],
@@ -592,14 +592,16 @@ class GlobalState(object):
         if objects is not None:
             import time
             task_profiles = self.task_profiles(start=0, end=time.time())
+            worker_id = task_profiles[task_id]["worker_id"]
+            worker = workers[worker_id]
             for obj_id, data in objects.items():
                 task_id = data["task_id"]
                 object_trace = {
                   "cat": "object",
                   "pid": "Objects",
-                  "tid": str(obj_id),
+                  "tid": str(task_id),
                   "id": str(obj_id),
-                  "ts": micros_rel(data["start"]),
+                  "ts": micros_rel(task_profiles[task_id]["get_arguments_start"]),
                   "ph": "X",
                   "name": str(obj_id),
                   "args": data,
@@ -610,25 +612,26 @@ class GlobalState(object):
 
                 obj_s = {
                     "cat": "object",
-                    "pid": str(task_profiles[task_id]["worker_id"]),
+                    "pid": "Node " + str(worker["node_ip_address"]),
                     "tid": str(task_profiles[task_id]["worker_id"]),
-                    "ts": micros_rel(task_profiles[task_id]["store_outputs_end"]),
+                    "ts": micros_rel(task_profiles[task_id]["get_arguments_start"]) + 1,
                     "ph": "s",
-                    "name": "SubmitObject",
+                    "name": "ObjectCreation",
                     "args": {},
-                    "id": str(task_profiles[task_id]["worker_id"])
+                    "id": str(obj_id) + str(worker_id) + str(data["start"]),
                 }
                 full_trace.append(obj_s)
 
                 obj_e = {
                   "cat": "object",
                   "pid": "Objects",
-                  "tid": str(obj_id),
-                  "ts": micros_rel(data["start"]),
+                  "tid": str(task_id),
+                  "ts": micros_rel(task_profiles[task_id]["get_arguments_start"]),
                   "ph": "f",
-                  "name": "SubmitTask",
+                  "name": "ObjectCreation",
                   "args": {},
-                  "id": str(obj_id)
+                  "id": str(obj_id) + str(worker_id) + str(data["start"]),
+                  "bp": "e"
                   }
                 full_trace.append(obj_e)
 
