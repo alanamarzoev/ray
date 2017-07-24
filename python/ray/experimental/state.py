@@ -575,6 +575,40 @@ class GlobalState(object):
                     }
                     full_trace.append(execute_trace)
             else:
+                import time
+                task_profiles = ray.global_state.task_profiles(start=0,end=time.time())
+                tasks = self.task_table()
+                parent_info = task_info.get(tasks[task_id]["TaskSpec"]["ParentTaskID"])
+                times = self._get_times(info)
+                worker = workers[info["worker_id"]]
+                if parent_info:
+                    parent_worker = workers[parent_info["worker_id"]]
+                    parent_times = self._get_times(parent_info)
+                    parent = {
+                        "cat": "submit_task",
+                        "pid": "Node " + str(parent_worker["node_ip_address"]),
+                        "tid": parent_info["worker_id"],
+                        "ts": micros_rel(task_profiles[tasks[task_id]["TaskSpec"]["ParentTaskID"]]["get_arguments_start"]),
+                        "ph": "s",
+                        "name": "SubmitTask",
+                        "args": {},
+                        "id": str(worker) + str(micros(min(parent_times)))
+                    }
+                    full_trace.append(parent)
+
+                    task_trace = {
+                       "cat": "submit_task",
+                       "pid": "Node " + str(worker["node_ip_address"]),
+                       "tid": info["worker_id"],
+                       "ts": micros_rel(info["get_arguments_start"]),
+                       "ph": "f",
+                       "name": "SubmitTask",
+                       "args": {},
+                       "id": str(worker) + str(micros(min(parent_times))),
+                       "bp": "e"
+                      }
+                    full_trace.append(task_trace)
+
                 task = {
                   "cat": "task",
                   "pid": "Node " + str(worker["node_ip_address"]),
@@ -626,7 +660,7 @@ class GlobalState(object):
                   "cat": "object",
                   "pid": "Objects",
                   "tid": str(task_id),
-                  "ts": micros_rel(task_profiles[task_id]["get_arguments_start"]),
+                  "ts": micros_rel(task_profiles[task_id]["get_arguments_start"]) + 2,
                   "ph": "f",
                   "name": "ObjectCreation",
                   "args": {},
@@ -635,7 +669,7 @@ class GlobalState(object):
                   }
                 full_trace.append(obj_e)
 
-        print("dumping {}/{}".format(len(full_trace), len(task_info)))
+        print("Creating JSON {}/{}".format(len(full_trace), len(task_info)))
         with open(path, "w") as outfile:
             json.dump(full_trace, outfile)
 
@@ -722,11 +756,9 @@ class GlobalState(object):
       try:
         queue = []
         while task_id not in nodes:
-          print("here")
           def add_objects(task_id):
             objs = [oid.hex() for oid in task_table[task_id]["TaskSpec"]["ReturnObjectIDs"]]
             for obj in objs:
-                print(obj)
                 objects[str(obj)] = dict()
                 objects[str(obj)]["start"] = task_profiles[task_id]["get_arguments_start"]
                 objects[str(obj)]["task_id"] = task_id

@@ -1,0 +1,152 @@
+import networkx as nx
+import time
+import sys
+from math import sqrt
+from bokeh.models import ColumnDataSource, TapTool, CustomJS
+from bokeh.layouts import widgetbox, row
+from bokeh.models.widgets import Paragraph, Div
+from bokeh.io import output_notebook, reset_output
+from bokeh.plotting import show, figure
+from bokeh.models import HoverTool
+import networkx as nx
+import pygraphviz as pgv
+import math
+import matplotlib as plt
+import networkx as nx
+import time
+from math import sqrt
+from bokeh.models import ColumnDataSource, TapTool, CustomJS
+from bokeh.layouts import widgetbox, row
+from bokeh.models.widgets import Paragraph, Div
+from bokeh.io import output_notebook, reset_output
+from bokeh.plotting import show, figure
+from bokeh.models import HoverTool
+from networkx.drawing.nx_agraph import graphviz_layout
+
+task_search = widgets.Text(
+    value="",
+    placeholder="Task ID",
+    description="Search for a task:",
+    disabled=False
+)
+display(task_search)
+
+def comp_graph(nodes_x, objects, edges):
+    def dependency_graph(nodes_x, objects, edges):
+        G = nx.DiGraph()
+        earliest, latest, num_tasks = ray.global_state._job_length()
+        subgraphs = [[] for _ in range(int(math.floor(earliest)), int(math.ceil(latest)))]
+
+        for obj_id, data in objects.items():
+            index = int(data["start"] - earliest)
+            subgraphs[index].append(obj_id)
+
+        for task_id, data in nodes_x.items():
+            index = int(data["get_arguments_start"] - earliest)
+            subgraphs[index].append(task_id)
+
+        A = nx.nx_agraph.to_agraph(G)
+
+        for subgraph in subgraphs:
+            A.add_subgraph(subgraph, rank="same")
+
+        for edge in edges:
+            A.add_edge(edge[0], edge[1])
+
+        return nx.nx_agraph.from_agraph(A)
+
+    network = dependency_graph(nodes_x, objects, edges)
+    layout = graphviz_layout(network, prog="dot")
+
+    nodes, nodes_coordinates = zip(*sorted(layout.items()))
+    nodes_xs, nodes_ys = list(zip(*nodes_coordinates))
+    colors = []
+    task_profiles = ray.global_state.task_profiles(start=0,end=time.time())
+    s_times = []
+
+    earliest, latest, num_tasks = ray.global_state._job_length()
+    for identity in nodes:
+        if identity in objects:
+            colors.append("#FE7070")
+        else:
+            colors.append("#B9CDF7")
+        if identity in task_profiles:
+            s_times.append(task_profiles[identity]["store_outputs_end"] - earliest)
+        else:
+            s_times.append("object")
+
+
+    nodes_source = ColumnDataSource(dict(x=nodes_xs, y=nodes_ys,
+                                         name=nodes, color=colors, time=s_times))
+    taptool = TapTool()
+    hover = HoverTool(tooltips=[('ID', '@name')])
+    plot = figure(plot_width=500, plot_height=500,
+                  tools=[taptool, hover, 'box_zoom', 'reset', "wheel_zoom", "pan"])
+    plot.xaxis.visible = False
+    plot.yaxis.visible = False
+    div = Div(text="Select a node to view more information. Blue nodes represent tasks and red nodes represent objects.")
+    # Function that allows for the selection of nodes and displays
+    def tap_callback(div=div):
+        selected = cb_obj.selected
+        if selected['0d'].glyph:
+            indices = selected['0d'].indices
+        elif len(selected['1d'].indices) > 0:
+            indices = selected['1d'].indices
+        elif len(selected['2d'].indices) > 0:
+            indices = selected['2d'].indices
+        else:
+            indices = []
+
+        # Build up a string with the new body of the div
+        s = ""
+        for key in cb_obj.data:
+            if key is "alphas":
+                break
+            if key is "color":
+                continue
+            if key is "x":
+                break
+            if key is "time":
+                for idx in indices:
+                    if cb_obj.data[key][idx] is "object":
+                        break
+                    s += "Time: "
+                    s += cb_obj.data[key][idx] + " "
+            else:
+                s += "ID: "
+                for idx in indices:
+                    s += cb_obj.data[key][idx] + " "
+                s += "<br/>"
+        div.text = s
+
+    taptool.callback = CustomJS.from_py_func(tap_callback)
+    r_circles = plot.circle("x", "y", color="color", source=nodes_source, size=30, level = "overlay", subscribed_events=["tap"])
+
+    def get_edges_specs(_network, _layout):
+        d = dict(xs=[], ys=[], alphas=[])
+        for u, v, data in _network.edges(data=True):
+                d["xs"].append([_layout[u][0], _layout[v][0]])
+                d["ys"].append([_layout[u][1], _layout[v][1]])
+                d["alphas"].append(1)
+        return d
+
+    lines_source = ColumnDataSource(get_edges_specs(network, layout))
+    r_lines = plot.multi_line("xs", "ys", line_width=1,
+                              alpha="alphas", color="navy",
+                              source=lines_source)
+    legend = figure(title="Legend Example")
+
+    output_notebook()
+    show(row(plot, div), notebook_handle=True)
+
+def handle_submit(sender):
+    pp = pprint.PrettyPrinter()
+    pp.pprint(ray.global_state.task_table(task_search.value))
+    nodes, objects, edges = ray.global_state.computation_graph(task_search.value)
+    comp_graph(nodes, objects, edges)
+    nodes_x, objects, edges = ray.global_state.computation_graph(task_search.value)
+    path = os.path.expanduser("~/Desktop/test.json")
+    ray.global_state.dump_catapult_trace(path, nodes_x, edges=edges, objects=objects)
+
+
+task_search.on_submit(handle_submit)
