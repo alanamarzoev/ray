@@ -516,6 +516,9 @@ class GlobalState(object):
         def micros_rel(ts):
             return micros(ts - start_time)
 
+        task_profiles = ray.global_state.task_profiles(start=0,end=time.time())
+        task_table = ray.global_state.task_table()
+
         full_trace = []
         for task_id, info in task_info.items():
             delta_info = dict()
@@ -529,6 +532,13 @@ class GlobalState(object):
             delta_info["function_name"] = info["function_name"]
             delta_info["worker_id"] = info["worker_id"]
             worker = workers[info["worker_id"]]
+            task_t_info = task_table[task_id]
+            task_spec = task_table[task_id]["TaskSpec"]
+            task_spec["ReturnObjectIDs"] = [oid.hex() for oid in task_t_info['TaskSpec']['ReturnObjectIDs']]
+            task_spec["LocalSchedulerID"] = task_t_info["LocalSchedulerID"]
+
+            total_info = dict(delta_info, **task_spec)
+
             if breakdowns:
                 if "get_arguments_end" in info:
                     get_args_trace = {
@@ -539,7 +549,7 @@ class GlobalState(object):
                         "ts": micros_rel(info["get_arguments_start"]),
                         "ph": "X",
                         "name": info["function_name"] + ":get_arguments",
-                        "args": delta_info,
+                        "args": total_info,
                         "dur": micros(info["get_arguments_end"] -
                                       info["get_arguments_start"])
                     }
@@ -554,7 +564,7 @@ class GlobalState(object):
                         "ts": micros_rel(info["store_outputs_start"]),
                         "ph": "X",
                         "name": info["function_name"] + ":store_outputs",
-                        "args": delta_info,
+                        "args": total_info,
                         "dur": micros(info["store_outputs_end"] -
                                       info["store_outputs_start"])
                     }
@@ -569,16 +579,13 @@ class GlobalState(object):
                         "ts": micros_rel(info["execute_start"]),
                         "ph": "X",
                         "name": info["function_name"] + ":execute",
-                        "args": delta_info,
+                        "args": total_info,
                         "dur": micros(info["execute_end"] -
                                       info["execute_start"])
                     }
                     full_trace.append(execute_trace)
             else:
-                import time
-                task_profiles = ray.global_state.task_profiles(start=0,end=time.time())
-                tasks = self.task_table()
-                parent_info = task_info.get(tasks[task_id]["TaskSpec"]["ParentTaskID"])
+                parent_info = task_info.get(task_table[task_id]["TaskSpec"]["ParentTaskID"])
                 times = self._get_times(info)
                 worker = workers[info["worker_id"]]
                 if parent_info:
@@ -588,7 +595,7 @@ class GlobalState(object):
                         "cat": "submit_task",
                         "pid": "Node " + str(parent_worker["node_ip_address"]),
                         "tid": parent_info["worker_id"],
-                        "ts": micros_rel(task_profiles[tasks[task_id]["TaskSpec"]["ParentTaskID"]]["get_arguments_start"]),
+                        "ts": micros_rel(task_profiles[task_table[task_id]["TaskSpec"]["ParentTaskID"]]["get_arguments_start"]),
                         "ph": "s",
                         "name": "SubmitTask",
                         "args": {},
@@ -617,57 +624,12 @@ class GlobalState(object):
                   "ts": micros_rel(info["get_arguments_start"]),
                   "ph": "X",
                   "name": info["function_name"],
-                  "args": delta_info,
+                  "args": total_info,
                   "dur": micros(info["store_outputs_end"] -
-                                info["get_arguments_start"])
+                                info["get_arguments_start"]),
+                  "cname": "rail_response"
                 }
                 full_trace.append(task)
-
-        if objects is not None:
-            import time
-            task_profiles = self.task_profiles(start=0, end=time.time())
-            worker_id = task_profiles[task_id]["worker_id"]
-            worker = workers[worker_id]
-            for obj_id, data in objects.items():
-                task_id = data["task_id"]
-                object_trace = {
-                  "cat": "object",
-                  "pid": "Objects",
-                  "tid": str(task_id),
-                  "id": str(obj_id),
-                  "ts": micros_rel(task_profiles[task_id]["get_arguments_start"]),
-                  "ph": "X",
-                  "name": str(obj_id),
-                  "args": data,
-                  "dur": micros(task_profiles[task_id]["store_outputs_end"] -
-                                task_profiles[task_id]["get_arguments_start"])
-                }
-                full_trace.append(object_trace)
-
-                obj_s = {
-                    "cat": "object",
-                    "pid": "Node " + str(worker["node_ip_address"]),
-                    "tid": str(task_profiles[task_id]["worker_id"]),
-                    "ts": micros_rel(task_profiles[task_id]["get_arguments_start"]) + 1,
-                    "ph": "s",
-                    "name": "ObjectCreation",
-                    "args": {},
-                    "id": str(obj_id) + str(worker_id) + str(data["start"]),
-                }
-                full_trace.append(obj_s)
-
-                obj_e = {
-                  "cat": "object",
-                  "pid": "Objects",
-                  "tid": str(task_id),
-                  "ts": micros_rel(task_profiles[task_id]["get_arguments_start"]) + 2,
-                  "ph": "f",
-                  "name": "ObjectCreation",
-                  "args": {},
-                  "id": str(obj_id) + str(worker_id) + str(data["start"]),
-                  "bp": "e"
-                  }
-                full_trace.append(obj_e)
 
         print("Creating JSON {}/{}".format(len(full_trace), len(task_info)))
         with open(path, "w") as outfile:
