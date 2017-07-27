@@ -540,39 +540,10 @@ class GlobalState(object):
 
             total_info = dict(delta_info, **task_spec)
 
-            if breakdowns:
-                parent_info = task_info.get(task_table[task_id]["TaskSpec"]["ParentTaskID"])
-                times = self._get_times(info)
-                worker = workers[info["worker_id"]]
-                if parent_info:
-                    parent_worker = workers[parent_info["worker_id"]]
-                    parent_times = self._get_times(parent_info)
-                    parent = {
-                        "cat": "submit_task",
-                        "pid": "Node " + str(parent_worker["node_ip_address"]),
-                        "tid": parent_info["worker_id"],
-                        "ts": micros_rel(task_profiles[task_table[task_id]["TaskSpec"]["ParentTaskID"]]["get_arguments_start"]),
-                        "ph": "s",
-                        "name": "SubmitTask",
-                        "args": {},
-                        "id": str(worker) + str(micros(min(parent_times))),
-                        "cname": "olive"
-                    }
-                    full_trace.append(parent)
-                    task_trace = {
-                       "cat": "submit_task",
-                       "pid": "Node " + str(worker["node_ip_address"]),
-                       "tid": info["worker_id"],
-                       "ts": micros_rel(info["get_arguments_start"]),
-                       "ph": "f",
-                       "name": "SubmitTask",
-                       "args": {},
-                       "id": str(worker) + str(micros(min(parent_times))),
-                       "bp": "e",
-                       "cname": "olive"
-                      }
-                    full_trace.append(task_trace)
+            parent_info = task_info.get(task_table[task_id]["TaskSpec"]["ParentTaskID"])
+            worker = workers[info["worker_id"]]
 
+            if breakdowns:
                 if "get_arguments_end" in info:
                     get_args_trace = {
                         "cat": "get_arguments",
@@ -621,39 +592,7 @@ class GlobalState(object):
                     }
                     full_trace.append(execute_trace)
 
-                args = task_table[task_id]["TaskSpec"]["Args"]
-                for arg in args:
-                    owner_task = objects[arg]["task_id"]
-                    owner_worker = workers[task_profiles[owner_task]["worker_id"]]
-
-                    owner = {
-                        "cat": "obj_dependency",
-                        "pid": "Node " + str(owner_worker["node_ip_address"]),
-                        "tid": task_profiles[owner_task]["worker_id"],
-                        "ts": micros_rel(task_profiles[owner_task]["store_outputs_end"]),
-                        "ph": "s",
-                        "name": "ObjectDependency",
-                        "args": {},
-                        "id": str("obj") + str(arg)
-                    }
-                    full_trace.append(owner)
-
-                    dependent = {
-                        "cat": "obj_dependency",
-                        "pid":  "Node " + str(worker["node_ip_address"]),
-                        "tid": info["worker_id"],
-                        "ts": micros_rel(info["get_arguments_start"]),
-                        "ph": "f",
-                        "name": "ObjectDependency",
-                        "args": {},
-                        "bp": "e",
-                        "id": str("obj") + str(arg)
-                    }
-                    full_trace.append(dependent)
             else:
-                parent_info = task_info.get(task_table[task_id]["TaskSpec"]["ParentTaskID"])
-                times = self._get_times(info)
-                worker = workers[info["worker_id"]]
                 if parent_info:
                     parent_worker = workers[parent_info["worker_id"]]
                     parent_times = self._get_times(parent_info)
@@ -693,35 +632,42 @@ class GlobalState(object):
                   "ph": "X",
                   "name": info["function_name"],
                   "args": total_info,
-                  "dur": micros(info["execute_end"] -
+                  "dur": micros(info["store_outputs_end"] -
                                 info["get_arguments_start"]),
                   "cname": "thread_state_runnable"
                 }
                 full_trace.append(task)
 
-                objects_list = task_table[task_id]["TaskSpec"]["ReturnObjectIDs"]
-
-                obj_dur = (info["store_outputs_end"] - info["store_outputs_start"]) / len(objects_list)
-                store_start = info["store_outputs_start"]
-                i = 0
-                for obj_id in objects_list:
-                    task_objects= {
-                      "cat": "task",
-                      "pid": "Node " + str(worker["node_ip_address"]),
-                      "tid": info["worker_id"],
-                      "id": str(task_id),
-                      "ts": micros_rel(store_start + (i * obj_dur)),
-                      "ph": "X",
-                      "name": str(obj_id),
-                      "args": total_info,
-                      "dur": micros(obj_dur),
-                      "cname": "olive"
+            if dependencies:
+                if parent_info:
+                    parent_worker = workers[parent_info["worker_id"]]
+                    parent_times = self._get_times(parent_info)
+                    parent = {
+                        "cat": "submit_task",
+                        "pid": "Node " + str(parent_worker["node_ip_address"]),
+                        "tid": parent_info["worker_id"],
+                        "ts": micros_rel(task_profiles[task_table[task_id]["TaskSpec"]["ParentTaskID"]]["get_arguments_start"]),
+                        "ph": "s",
+                        "name": "SubmitTask",
+                        "args": {},
+                        "id": str(worker) + str(micros(min(parent_times))),
+                        "cname": "olive"
                     }
-                    full_trace.append(task_objects)
-                    i += 1
-
+                    full_trace.append(parent)
+                    task_trace = {
+                       "cat": "submit_task",
+                       "pid": "Node " + str(worker["node_ip_address"]),
+                       "tid": info["worker_id"],
+                       "ts": micros_rel(info["get_arguments_start"]),
+                       "ph": "f",
+                       "name": "SubmitTask",
+                       "args": {},
+                       "id": str(worker) + str(micros(min(parent_times))),
+                       "bp": "e",
+                       "cname": "olive"
+                      }
+                    full_trace.append(task_trace)
                 args = task_table[task_id]["TaskSpec"]["Args"]
-
                 for arg in args:
                     owner_task = objects[arg]["task_id"]
                     owner_worker = workers[task_profiles[owner_task]["worker_id"]]
@@ -730,7 +676,7 @@ class GlobalState(object):
                         "cat": "obj_dependency",
                         "pid": "Node " + str(owner_worker["node_ip_address"]),
                         "tid": task_profiles[owner_task]["worker_id"],
-                        "ts": micros_rel(task_profiles[owner_task]["store_outputs_start"]),
+                        "ts": micros_rel(task_profiles[owner_task]["store_outputs_end"]),
                         "ph": "s",
                         "name": "ObjectDependency",
                         "args": {},
