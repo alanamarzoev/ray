@@ -1,0 +1,74 @@
+from IPython.display import display, IFrame
+import shutil
+
+def write_document(json_url, html_url):
+    with open('index.html') as f:
+        data = f.read()
+    data = data.replace('REPLACE_THIS_STRING', json_url)
+    with open(html_url, 'w+') as f:
+        f.write(data)
+
+def task_timeline():
+    path_input = widgets.Button(description="View task timeline")
+
+    breakdown_basic = "Basic"
+    breakdown_task = "Task Breakdowns"
+
+    breakdown_opt = widgets.Dropdown(
+        options=["Basic", "Task Breakdowns"],
+        value="Basic",
+        description="View options:",
+        disabled=False,
+    )
+
+    start_box, end_box, range_slider, time_opt = get_sliders(False)
+    display(breakdown_opt)
+    display(path_input)
+
+    def find_trace2html():
+        trace2html = "/tmp/ray/catapult/tracing/bin/trace2html"
+        # Clone the catapult repository if it doesn't exist. TODO(rkn): We
+        # could do this in the build.sh script later on.
+        if not os.path.exists(trace2html):
+            cmd = ["git", "clone", "https://github.com/catapult-project/catapult.git", "/tmp/ray/catapult"]
+            subprocess.check_output(cmd)
+            print("Cloning catapult to /tmp/ray/catapult.")
+        assert os.path.exists(trace2html)
+        return trace2html
+
+    def handle_submit(sender):
+        tmp = tempfile.mktemp() + ".json"
+        tmp2 = tempfile.mktemp() + ".html"
+        html_file = tmp2
+        if breakdown_opt.value == breakdown_basic:
+            breakdown = False
+        elif breakdown_opt.value == breakdown_task:
+            breakdown = True
+        else:
+            raise ValueError("Unexpected breakdown value '{}'".format(breakdown_opt.value))
+
+        low, high = map(lambda x: x / 100., range_slider.value)
+
+        smallest, largest, num_tasks = ray.global_state._job_length()
+        diff = largest - smallest
+
+        if time_opt.value == total_time_value:
+            tasks = ray.global_state.task_profiles(start=smallest + diff * low, end=smallest + diff * high)
+        elif time_opt.value == total_tasks_value:
+            if range_slider.value[0] == 0:
+                tasks = ray.global_state.task_profiles(num_tasks=int(num_tasks * high), fwd=True)
+            else:
+                tasks = ray.global_state.task_profiles(num_tasks=int(num_tasks * (high - low)), fwd=False)
+        else:
+            raise ValueError("Unexpected time value '{}'".format(time_opt.value))
+
+        print("{} tasks to trace".format(len(tasks)))
+        ray.global_state.dump_catapult_trace(tmp, tasks, breakdowns=breakdown)
+        shutil.copy(tmp, 'tmp_trace.json')
+        write_document('tmp_trace.json', 'to_display.html')
+        display(IFrame('to_display.html', 900, 800))
+
+
+    path_input.on_click(handle_submit)
+
+task_timeline()

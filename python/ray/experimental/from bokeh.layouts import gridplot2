@@ -1,0 +1,145 @@
+from bokeh.layouts import gridplot
+from bokeh.plotting import figure, show, helpers
+from bokeh.resources import CDN
+from bokeh.io import output_notebook, push_notebook
+from bokeh.models import Range1d, ColumnDataSource
+import numpy as np
+output_notebook(resources=CDN)
+
+# Helper function used to parse the client table to determine how many CPUs are available
+def helper(d):
+    if "NumCPUs" in d:
+        yield d["NumCPUs"]
+    for k in d:
+        if isinstance(d[k], list):
+            for i in d[k]:
+                for j in helper(i):
+                    yield j
+client_table = ray.global_state.client_table()
+num_cpus = list(helper(client_table))[0]
+
+# Generate the histogram that will be plotted
+def compute_utilizations(abs_earliest, abs_latest, abs_num_tasks, tasks, num_buckets):
+    earliest = time.time()
+    latest = 0
+
+    # Determine what the earliest and latest tasks are
+    for task_id, data in tasks.items():
+        latest = max((latest, data["score"], data["store_outputs_end"]))
+        earliest = min((earliest, data["score"], data["get_arguments_start"]))
+
+    granularity = int(np.ceil(((latest - earliest) / num_buckets)))
+    buckets = []
+
+    # Used to maintain a list of tasks that were encountered whose end times are later than the bucket end time
+    buffer = []
+
+    # Create a distribution (buckets)
+    for i in range(0, num_buckets):
+        start = i * granularity + earliest
+        end = start + granularity
+        t = ray.global_state.task_profiles(start=start, end=end)
+        usage = 0
+
+        # Create an updated buffer while going through the original
+        new_buffer = []
+        for data in buffer:
+            # Determine the contribution of the tasks in the buffer to the current bucket
+            if data["store_outputs_end"] > end:
+                new_buffer.append(data)
+                usage += 1
+            elif data["store_outputs_end"] > start:
+                usage += (data["store_outputs_end"] - start) / granularity
+
+        # Update the buffer
+        buffer = new_buffer
+
+        # Parse the tasks with scores that are within the time window of the bucket
+        for task_id, data in t.items():
+            m_usage = min((end, data["store_outputs_end"])) - max((start, data["get_arguments_start"]))
+            usage += m_usage / granularity
+
+            # Add tasks that end after the end point of this bucket to the buffer
+            if data["store_outputs_end"] > end:
+                buffer.append(data)
+
+            # Account for tasks whose actual start times (not scores) are earlier than this bucket
+            j = i - 1
+            while j >= 0 and data["get_arguments_start"] < (j + 1) * granularity + earliest:
+                j_start_time = j * granularity + earliest
+                j_end_time = j_start_time + granularity
+                buckets[j] += (j_end_time - max((j_start_time, data["get_arguments_start"]))) / granularity
+                j -= 1
+        buckets.append(usage)
+
+    if len(buckets) > 0 and max(buckets) < 1e-10:
+        return [], [], []
+
+    distr = []
+    for x in range(len(buckets)):
+        distr.extend([earliest - abs_earliest + granularity * x] * int(buckets[x]))
+
+    # Create a histogram from the distribution data
+    bins = [earliest - abs_earliest + (i - 1) * granularity for i in range(len(buckets) + 2)]
+    hist, bin_edges = np.histogram(np.asarray(distr, dtype=float), bins=bins)
+
+    left = bin_edges[:-1]
+    right = bin_edges[1:]
+    diff =  len(buckets) - len(left)
+
+    for x in range(np.absolute(diff)):
+        buckets.append(0)
+
+    return left, right, buckets
+
+
+# Update the plot based on the sliders
+def plot_utilization():
+
+    # Create the Bokeh plot
+    time_series_fig = figure(title="CPU Utilization",
+                             tools=["save", "hover", "wheel_zoom", "box_zoom", "pan"],
+                             background_fill_color="#FFFFFF", x_range=[0, 1], y_range=[0, 1])
+
+    # Create the data source that the plot will pull from
+    time_series_source = ColumnDataSource(data=dict(
+        left=[],
+        right=[],
+        top=[]
+    ))
+
+    # Plot the rectangles representing the distribution
+    time_series_fig.quad(left="left", right="right", top="top", bottom=0,
+                         source=time_series_source, fill_color="#B3B3B3", line_color="#033649")
+
+    # Label the plot axes
+    time_series_fig.xaxis.axis_label = "Time in seconds"
+    time_series_fig.yaxis.axis_label = "Number of CPUs used"
+
+    handle = show(gridplot(time_series_fig, ncols=1, plot_width=500, plot_height=500, toolbar_location="below"),
+         notebook_handle=True)
+
+    def update_plot(abs_earliest, abs_latest, abs_num_tasks, tasks):
+        num_buckets = 100
+        left, right, top = compute_utilizations(abs_earliest, abs_latest, abs_num_tasks, tasks, num_buckets)
+
+        time_series_source.data = {"left": left, "right": right, "top": top}
+
+        x_range = (max(0, min(left)) if len(left) else 0, max(right) if len(right) else 1)
+        y_range = (0, max(top) + 1 if len(top) else 1)
+
+        # Define the axis ranges
+        x_range = helpers._get_range(x_range)
+        time_series_fig.x_range.start = x_range.start
+        time_series_fig.x_range.end = x_range.end
+
+        y_range = helpers._get_range(y_range)
+        time_series_fig.y_range.start = y_range.start
+        time_series_fig.y_range.end = num_cpus
+
+        # Push the updated data to the notebook
+        push_notebook(handle=handle)
+
+    get_sliders(update_plot)
+
+plot_utilization()

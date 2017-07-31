@@ -1,0 +1,17 @@
+### Ray UI.
+
+#### To run the UI:
+1. Kernel -> Restart and Run All
+
+
+#### To hide the code:
+
+1. Install the hide_code extension.
+```
+pip install hide_code
+jupyter nbextension install --py hide_code
+jupyter nbextension enable --py hide_code
+jupyter serverextension enable --py hide_code
+```
+2. Go to View -> Cell Toolbar -> Hide Code.
+3. Press ESC then T

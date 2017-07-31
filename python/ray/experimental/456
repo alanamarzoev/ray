@@ -1,0 +1,116 @@
+def dependency_graph(task_id):
+    import networkx as nx
+    from bokeh.plotting import figure, show
+    from bokeh.resources import CDN
+    from bokeh.io import output_notebook
+    from bokeh.models import CustomJS, ColumnDataSource, Slider, HoverTool
+    output_notebook( resources=CDN )
+    from bokeh.layouts import gridplot
+
+    edges = []
+    nodes = set()
+
+    DG = nx.DiGraph()
+
+    import time
+    task_profiles = ray.global_state.task_profiles(start=0,end=time.time())
+    task_info = ray.global_state.task_table()
+
+    source = ColumnDataSource(data=dict(
+        x=[],
+        y=[],
+        task_id=[],
+        parent_id=[],
+        function_name=[],
+        return_object=[]
+    ))
+
+    task_id = task_id
+    while task_id in task_info:
+        while "ParentTaskID" in task_info[task_id]["TaskSpec"]:
+            if task_id not in nodes:
+                nodes.add(task_id)
+                parent_id = task_info[task_id]["TaskSpec"]["ParentTaskID"]
+                DG.add_node(task_id)
+                edges.append([task_id, parent_id])
+            else:
+                break
+        task_id = parent_id
+    DG.add_node(task_id)
+    DG.add_edges_from(edges)
+    from collections import defaultdict
+    df = defaultdict(list)
+    pts = nx.shell_layout(DG)
+    for task_id, indices in pts.items():
+        if task_id in task_info:
+            df["x"].append(indices[0])
+            df["y"].append(indices[1])
+            df["task_id"].append(task_info[task_id]["TaskSpec"]["TaskID"])
+            if task_id in task_profiles:
+                df["function_name"].append(task_profiles[task_id]["function_name"])
+            else:
+                df["function_name"].append("None")
+            if "ParentTaskID" in task_info[task_id]["TaskSpec"]:
+                df["parent_id"].append(task_info[task_id]["TaskSpec"]["ParentTaskID"])
+                df["return_object"].append(task_info[task_id]["TaskSpec"]["ReturnObjectIDs"])
+            else:
+                df["parent_id"].append("None")
+
+    source.data = dict(
+                    x= df["x"],
+                    y= df["y"],
+                    parent_id=df["parent_id"],
+                    task_id=df["task_id"],
+                    function_name=df["function_name"],
+                    return_object=df["return_object"]
+                    )
+
+    hover = HoverTool(tooltips=[
+        ("TaskID", "@task_id"),
+        ("Function", "@function_name"),
+        ("ParentID", "@parent_id"),
+        ("Return ObjectID", "@return_object")
+    ])
+
+    p = figure(
+        x_range=(-5,5),
+        y_range=(-5,5),
+        height=700,
+        width=700,
+        tools=[hover,"pan","wheel_zoom","box_zoom", "save"],
+        toolbar_sticky=False
+    )
+
+    p.xaxis.visible = False
+    p.yaxis.visible = False
+
+    p.line(
+        x="x",
+        y="y",
+        source=source
+    )
+
+    p.circle(
+    x="x",
+    y="y",
+    source=source,
+    size=40,
+    color="blue")
+
+    show(gridplot(p, ncols=1, plot_width=500, plot_height=500, toolbar_location="below"))
+
+
+task_search = widgets.Text(
+    value="",
+    placeholder="Task ID",
+    description="Search for a task:",
+    disabled=False
+)
+display(task_search)
+
+def handle_submit(sender):
+    pp = pprint.PrettyPrinter()
+    pp.pprint(ray.global_state.task_table(task_search.value))
+    dependency_graph(task_search.value)
+
+task_search.on_submit(handle_submit)

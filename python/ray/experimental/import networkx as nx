@@ -1,0 +1,110 @@
+import networkx as nx
+from math import sqrt
+from bokeh.models import ColumnDataSource, TapTool, CustomJS
+from bokeh.layouts import widgetbox
+from bokeh.models.widgets import Paragraph
+from bokeh.io import output_notebook, reset_output
+from bokeh.plotting import show, figure
+from bokeh.models import HoverTool
+
+reset_output()
+def dependency_graph(task_id):
+    import networkx as nx
+
+    edges = []
+    nodes = set()
+    objects = []
+    obj_edges = []
+
+    DG = nx.DiGraph()
+
+    import time
+    task_profiles = ray.global_state.task_profiles(start=0,end=time.time())
+    task_info = ray.global_state.task_table()
+
+    if task_id not in task_info:
+        raise ValueError("There does not exist a task with this ID.")
+
+    DG.add_node(task_id, color="red", typ="task")
+
+    try:
+        while task_id not in nodes:
+            nodes.add(task_id)
+            objs = [oid.hex() for oid in task_info[task_id]['TaskSpec']['ReturnObjectIDs']]
+            for obj in objs:
+                objects.append(str(obj))
+                obj_edges.append((task_id, obj))
+                DG.add_node(obj, color="green", typ="object")
+
+            parent_id = task_info[task_id]["TaskSpec"]["ParentTaskID"]
+            if parent_id not in task_info:
+                break
+            parent_objs = [oid.hex() for oid in task_info[parent_id]['TaskSpec']['ReturnObjectIDs']]
+            DG.add_node(parent_id, color="blue")
+            for obj in parent_objs:
+                objects.append(str(obj))
+                obj_edges.append((parent_id, obj))
+                DG.add_node(obj, color="green", typ="object")
+            edges.append([task_id, parent_id])
+            task_id = parent_id
+    except KeyError:
+        pass
+
+    DG.add_edges_from(edges, weight=1)
+    DG.add_edges_from(edges)
+    return DG
+
+network = dependency_graph('25ab43d44dc593747da8039da7fb2c33924c95d2')
+layout = nx.shell_layout(network)
+
+nodes, nodes_coordinates = zip(*sorted(layout.items()))
+nodes_xs, nodes_ys = list(zip(*nodes_coordinates))
+
+colors = []
+for x in network.nodes():
+    colors.append(network.node[x]["color"])
+
+
+par = Paragraph(text="""Your text is initialized with the 'text' argument.  The
+remaining Paragraph arguments are 'width' and 'height'. For this example, those values
+are 200 and 100 respectively.""",
+width=200, height=100)
+
+nodes_source = ColumnDataSource(dict(x=nodes_xs, y=nodes_ys,
+                                     name=nodes, color=colors))
+
+hover = HoverTool(tooltips=[('name', '@name'), ('id', '$index')])
+plot = figure(plot_width=500, plot_height=500,
+              tools=['tap', hover, 'box_zoom', 'reset', "wheel_zoom", "pan"])
+
+def tap_callback(source=nodes_source):
+    task_id = '@name'
+    print("hi")
+    print(task_id)
+    output_notebook()
+
+taptool = plot.select(type=TapTool)
+taptool.callback = CustomJS.from_py_func(tap_callback(source=nodes_source))
+
+
+r_circles = plot.circle('x', 'y', source=nodes_source, size=30,
+                        color="color", level = 'overlay')
+
+
+plot.select_one(TapTool).renderers = [r_circles]
+
+
+def get_edges_specs(_network, _layout):
+    d = dict(xs=[], ys=[], alphas=[])
+    for u, v, data in _network.edges(data=True):
+        d['xs'].append([_layout[u][0], _layout[v][0]])
+        d['ys'].append([_layout[u][1], _layout[v][1]])
+        d['alphas'].append(1)
+    return d
+
+lines_source = ColumnDataSource(get_edges_specs(network, layout))
+r_lines = plot.multi_line('xs', 'ys', line_width=1,
+                          alpha='alphas', color='navy',
+                          source=lines_source)
+output_notebook()
+show(plot, notebook_handle=True)

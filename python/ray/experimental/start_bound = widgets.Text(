@@ -1,0 +1,73 @@
+start_bound = widgets.Text(
+    value="",
+    placeholder="e.g. - 0 ",
+    description="Query start time (s):",
+    disabled=False
+)
+display(start_bound)
+
+end_bound = widgets.Text(
+    value="",
+    placeholder="e.g. - 100 ",
+    description="Query end time (s):",
+    disabled=False
+)
+display(end_bound)
+
+num_bound = widgets.Text(
+    value="",
+    placeholder="e.g. - 10 ",
+    description="# of tasks shown (s):",
+    disabled=False
+)
+display(num_bound)
+
+breakdown_opt = widgets.Dropdown(
+    options=["Basic", "Task Breakdowns"],
+    value="Basic",
+    description="View options:",
+    disabled=False,
+)
+display(breakdown_opt)
+
+path_input = widgets.Button(description="View task timeline")
+display(path_input)
+
+def find_trace2html():
+    trace2html = os.path.join(os.path.expanduser("~"), "catapult", "tracing", "bin", "trace2html")
+    assert os.path.exists(trace2html), "Could not find catapult, please clone it into your home directory from https://github.com/catapult-project/catapult/tree/master/tracing"
+    return trace2html
+
+def handle_submit(sender):
+    tmp = tempfile.mktemp() + ".json"
+    tmp2 = tempfile.mktemp() + ".html"
+
+    if start_bound.value is "":
+        start_t = None
+    else:
+        start_t = int(start_bound.value)
+
+    if end_bound.value is "":
+        end_t = None
+    else:
+        end_t = int(end_bound.value)
+
+    if num_bound.value is "":
+        num_t = None
+    else:
+        num_t = int(num_bound.value)
+
+    if breakdown_opt.value is "Basic":
+        breakdown = False
+    else:
+        breakdown = True
+
+    print("Dumping task profiling data to " + tmp)
+    ray.global_state.dump_catapult_trace(tmp, start=start_t, end=end_t, num=num_t, breakdowns=breakdown)
+    print("Converting chrome trace to " + tmp2)
+    trace2html = find_trace2html()
+    subprocess.check_output(["python2", trace2html, tmp, '--output', tmp2])
+    print("Opening html file in browser...")
+    subprocess.Popen(["open", "-a", "Google Chrome", tmp2])
+
+path_input.on_click(handle_submit)

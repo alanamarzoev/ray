@@ -1,0 +1,53 @@
+import time
+from bokeh.models import Range1d
+from bokeh.layouts import gridplot
+
+def task_completion_time_distribution():
+
+    p = figure(title="Task Completion Time Distribution",tools=["save", "hover", "wheel_zoom", "box_zoom", "pan"],
+                background_fill_color="#FFFFFF", x_range=(0, 1), y_range = (0, 1))
+
+    source = ColumnDataSource(data={
+        'top': [],
+        'left': [],
+        'right': []
+    })
+    p.quad(top='top', bottom=0, left='left', right='right', source=source,
+            fill_color="#B3B3B3", line_color="#033649")
+
+    p.xaxis.axis_label = 'Time in seconds'
+    p.yaxis.axis_label = 'Number of concurrent tasks'
+
+    handle = show(gridplot(p, ncols=1, plot_width=500, plot_height=500, toolbar_location="below"),
+                 notebook_handle=True)
+
+    def task_completion_time_update(abs_earliest, abs_latest, abs_num_tasks, tasks):
+        if len(tasks) == 0:
+            return
+
+        distr = []
+        for task_id, data in tasks.items():
+            distr.append(data["store_outputs_end"] - data["get_task_start"])
+
+        top, bin_edges = np.histogram(distr, bins='auto')
+        left = bin_edges[:-1]
+        right = bin_edges[1:]
+
+        source.data = {'top': top, 'left': left, 'right': right}
+
+        x_range = (min(left) if len(left) else 0, max(right) if len(right) else 1)
+        y_range = (0, max(top) + 1 if len(top) else 1)
+
+        x_range = helpers._get_range(x_range)
+        p.x_range.start = x_range.start
+        p.x_range.end = x_range.end
+
+        y_range = helpers._get_range(y_range)
+        p.y_range.start = y_range.start
+        p.y_range.end = y_range.end
+
+        push_notebook(handle=handle)
+
+    get_sliders(task_completion_time_update)
+
+task_completion_time_distribution()

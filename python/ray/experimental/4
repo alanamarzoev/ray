@@ -1,0 +1,48 @@
+import json
+import heapq
+import qgrid
+import pandas as pd
+from pandas.io.json import json_normalize
+
+table = ray.global_state.task_table()
+stragglers = dict()
+
+def handle_submit(sender):
+    if num_slowest.value is "":
+        num_slow = sys.maxsize
+    else:
+        num_slow = int(num_slowest.value)
+
+    tasks = ray.global_state.task_profiles(num = num_slow)
+    longest = []
+    heapq.heapify(longest)
+    l_size = 0
+    for task_id, data in tasks.items():
+        dur = data["store_outputs_end"] - data["get_arguments_start"]
+        heapq.heappush(longest, (dur, task_id))
+        l_size += 1
+        if l_size > num_slow:
+            shortest, shortest_id = heapq.heappop(longest)
+    for x,y in longest:
+        stragglers[y] = dict()
+        stragglers[y]["Duration(s)"] = x
+
+    df_o = pd.DataFrame.from_dict(stragglers)
+    df = df_o.T
+    df.index.name = "TaskID"
+    df.columns = ["Duration (s)"]
+    grid = qgrid.QGridWidget(df=df)
+    display(grid)
+
+
+
+num_slowest = widgets.Text(
+    value="",
+    placeholder="e.g. - 10 ",
+    description="Top _ stragglers:",
+    disabled=False
+)
+display(num_slowest)
+path_input = widgets.Button(description="View table")
+display(path_input)
+path_input.on_click(handle_submit)

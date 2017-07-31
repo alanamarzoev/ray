@@ -1,0 +1,118 @@
+from bokeh.layouts import gridplot
+from bokeh.plotting import figure, show, helpers
+from bokeh.resources import CDN
+from bokeh.io import output_notebook, push_notebook
+from bokeh.models import Range1d, ColumnDataSource
+import numpy as np
+output_notebook(resources=CDN)
+
+# Helper function that is used to parse the client table an many CPUs are available
+num_cpus = 0
+client_table = ray.global_state.client_table()
+for node_ip, client_list in client_table.items():
+    for client in client_list:
+        if "NumCPUs" in client:
+            num_cpus += client["NumCPUs"]
+
+def compute_utilizations(abs_earliest, abs_latest, num_tasks, tasks, num_buckets):
+    # Determine what the earliest and latest tasks are out of the ones that are passed in
+    earliest_time = time.time()
+    latest_time = 0
+
+    if len(tasks) == 0:
+        return [], [], []
+
+    sum_len = 0
+    for task_id, data in tasks.items():
+        latest_time = max((latest_time, data["store_outputs_end"]))
+        earliest_time = min((earliest_time, data["get_arguments_start"]))
+        sum_len += data["store_outputs_end"] - data["get_arguments_start"]
+
+    # Add some epsilon to latest_time to ensure that the end time of the last task
+    # falls __within__ a bucket, and not on the edge
+    latest_time += 1e-6
+
+    # Compute average CPU utilization per time bucket by summing cpu-time per bucket
+    bucket_time_length = (latest_time - earliest_time) / float(num_buckets)
+    cpu_time = [0 for _ in range(num_buckets)]
+
+    for data in tasks.values():
+        task_start_time = data["get_arguments_start"]
+        task_end_time = data["store_outputs_end"]
+
+        start_bucket = int((task_start_time - earliest_time) / bucket_time_length)
+        end_bucket = int((task_end_time - earliest_time) / bucket_time_length)
+        # Walk over each time bucket that this task intersects, adding the amount of
+        # time that the task intersects within each bucket
+        for bucket_idx in range(start_bucket, end_bucket + 1):
+            bucket_start_time = earliest_time + bucket_idx * bucket_time_length
+            bucket_end_time = earliest_time + (bucket_idx + 1) * bucket_time_length
+
+            task_start_time_within_bucket = max(task_start_time, bucket_start_time)
+            task_end_time_within_bucket = min(task_end_time, bucket_end_time)
+            task_cpu_time_within_bucket = task_end_time_within_bucket - task_start_time_within_bucket
+
+            cpu_time[bucket_idx] += task_cpu_time_within_bucket
+
+    # Cpu_utilization is the average cpu utilization of the bucket, which is just
+    # cpu_time divided by bucket_time_length
+    cpu_utilization = list(map(lambda x: x / float(bucket_time_length), cpu_time))
+
+    # Generate histogram bucket edges. Subtract out abs_earliest to get relative time
+    all_edges = [earliest_time - abs_earliest + i * bucket_time_length for i in range(num_buckets + 1)]
+    # Left edges are all but the rightmost edge, right edges are all but the leftmost edge
+    left_edges = all_edges[:-1]
+    right_edges = all_edges[1:]
+
+    return left_edges, right_edges, cpu_utilization
+
+
+# Update the plot based on the sliders
+def plot_utilization():
+    # Create the Bokeh plot
+    time_series_fig = figure(title="CPU Utilization",
+                             tools=["save", "hover", "wheel_zoom", "box_zoom", "pan"],
+                             background_fill_color="#FFFFFF", x_range=[0, 1], y_range=[0, 1])
+
+    # Create the data source that the plot will pull from
+    time_series_source = ColumnDataSource(data=dict(
+        left=[],
+        right=[],
+        top=[]
+    ))
+
+    # Plot the rectangles representing the distribution
+    time_series_fig.quad(left="left", right="right", top="top", bottom=0,
+                         source=time_series_source, fill_color="#B3B3B3", line_color="#033649")
+
+    # Label the plot axes
+    time_series_fig.xaxis.axis_label = "Time in seconds"
+    time_series_fig.yaxis.axis_label = "Number of CPUs used"
+
+    handle = show(gridplot(time_series_fig, ncols=1, plot_width=500, plot_height=500, toolbar_location="below"),
+         notebook_handle=True)
+
+    def update_plot(abs_earliest, abs_latest, abs_num_tasks, tasks):
+        num_buckets = 100
+        left, right, top = compute_utilizations(abs_earliest, abs_latest, abs_num_tasks, tasks, num_buckets)
+
+        time_series_source.data = {"left": left, "right": right, "top": top}
+
+        x_range = (max(0, min(left)) if len(left) else 0, max(right) if len(right) else 1)
+        y_range = (0, max(top) + 1 if len(top) else 1)
+
+        # Define the axis ranges
+        x_range = helpers._get_range(x_range)
+        time_series_fig.x_range.start = x_range.start
+        time_series_fig.x_range.end = x_range.end
+
+        y_range = helpers._get_range(y_range)
+        time_series_fig.y_range.start = y_range.start
+        time_series_fig.y_range.end = num_cpus
+
+        # Push the updated data to the notebook
+        push_notebook(handle=handle)
+
+    get_sliders(update_plot)
+
+plot_utilization()

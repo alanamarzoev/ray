@@ -1,0 +1,115 @@
+@ray.remote
+def f():
+    return "hi"
+
+@ray.remote
+def g():
+    f.remote()
+
+@ray.remote
+def h():
+    g.remote()
+
+@ray.remote
+def i():
+    h.remote()
+
+@ray.remote
+def j():
+    i.remote()
+
+@ray.remote
+def l():
+    j.remote()
+
+@ray.remote
+def m():
+    l.remote()
+
+@ray.remote
+def n():
+    m.remote()
+
+@ray.remote
+def k():
+    n.remote()
+
+
+for x in range(10):
+    k.remote()
+
+print(ray.global_state.task_profiles(start=0, end=time.time()))
+
+import os
+
+git
+
+import networkx as nx
+import pygraphviz as pgv
+import math
+import matplotlib as plt
+import networkx as nx
+import time
+from math import sqrt
+from bokeh.models import ColumnDataSource, TapTool, CustomJS
+from bokeh.layouts import widgetbox, row
+from bokeh.models.widgets import Paragraph, Div
+from bokeh.io import output_notebook, reset_output
+from bokeh.plotting import show, figure
+from bokeh.models import HoverTool
+from networkx.drawing.nx_agraph import graphviz_layout
+
+reset_output()
+
+G = nx.DiGraph()
+
+earliest, latest, num_tasks = ray.global_state._job_length()
+
+subgraphs = [[] for _ in range(int(math.floor(earliest)), int(math.ceil(latest)))]
+
+for obj_id, data in objects.items():
+    index = int(data["start"] - earliest)
+    subgraphs[index].append(obj_id)
+
+for task_id, data in nodes_x.items():
+    index = int(data["get_arguments_start"] - earliest)
+    subgraphs[index].append(task_id)
+
+
+A = nx.nx_agraph.to_agraph(G)
+
+for subgraph in subgraphs:
+    A.add_subgraph(subgraph, rank="same")
+
+for edge in edges:
+    A.add_edge(edge[0], edge[1])
+
+H=nx.nx_agraph.from_agraph(A)
+
+layout = graphviz_layout(H, prog="dot")
+plot = figure(plot_width=500, plot_height=500,
+              tools=['box_zoom', 'reset', "wheel_zoom", "pan"])
+
+nodes, nodes_coordinates = zip(*sorted(layout.items()))
+nodes_xs, nodes_ys = list(zip(*nodes_coordinates))
+
+nodes_source = ColumnDataSource(dict(x=nodes_xs, y=nodes_ys,
+                                     name=nodes))
+r_circles = plot.circle("x", "y", source=nodes_source, size=30,
+                        level = "overlay", subscribed_events=["tap"])
+
+def get_edges_specs(_network, _layout):
+    d = dict(xs=[], ys=[], alphas=[])
+    for u, v, data in _network.edges(data=True):
+        d["xs"].append([_layout[u][0], _layout[v][0]])
+        d["ys"].append([_layout[u][1], _layout[v][1]])
+        d["alphas"].append(1)
+    return d
+
+lines_source = ColumnDataSource(get_edges_specs(H, layout))
+r_lines = plot.multi_line("xs", "ys", line_width=1,
+                          alpha="alphas", color="navy",
+                          source=lines_source)
+
+output_notebook()
+show(plot, notebook_handle=True)
