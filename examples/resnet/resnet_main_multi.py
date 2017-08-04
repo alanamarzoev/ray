@@ -33,7 +33,7 @@ parser.add_argument("--eval_dir", default="/tmp/resnet-model/eval", type=str,
                     help="Data path for the tensorboard logs.")
 parser.add_argument("--eval_batch_count", default=50, type=int,
                     help="Number of batches to evaluate over.")
-parser.add_argument("--num_gpus", default=0, type=int,
+parser.add_argument("--num_gpus", default=8, type=int,
                     help="Number of GPUs to use for training.")
 
 FLAGS = parser.parse_args()
