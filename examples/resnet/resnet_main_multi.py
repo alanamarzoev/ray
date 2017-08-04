@@ -39,7 +39,7 @@ parser.add_argument("--num_gpus", default=8, type=int,
 FLAGS = parser.parse_args()
 
 # Determines if the actors require a gpu or not.
-use_gpu = 8 if int(FLAGS.num_gpus) > 0 else 0
+use_gpu = 8 if int(FLAGS.num_gpus) > 0 else 8
 
 
 @ray.remote
