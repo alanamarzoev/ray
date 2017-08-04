@@ -13,7 +13,7 @@ import ray
 import tensorflow as tf
 
 import cifar_input
-import resnet_model_multi 
+import resnet_model_multi
 
 # Tensorflow must be at least version 1.0.0 for the example to work.
 if int(tf.__version__.split(".")[0]) < 1:
@@ -65,7 +65,7 @@ class ResNetTrainActor(object):
             os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
                 [str(i) for i in ray.get_gpu_ids()])
 
-        hps = resnet_model.HParams(
+        hps = resnet_model_multi.HParams(
             batch_size=128,
             num_classes=100 if dataset == "cifar100" else 10,
             min_lrn_rate=0.0001,
@@ -124,7 +124,7 @@ class ResNetTrainActor(object):
 @ray.remote
 class ResNetTestActor(object):
     def __init__(self, data, dataset, eval_batch_count, eval_dir):
-        hps = resnet_model.HParams(
+        hps = resnet_model_multi.HParams(
             batch_size=100,
             num_classes=100 if dataset == "cifar100" else 10,
             min_lrn_rate=0.0001,
@@ -143,7 +143,7 @@ class ResNetTestActor(object):
                                                       input_labels],
                                                      hps.batch_size, dataset,
                                                      False)
-            self.model = resnet_model.ResNet(hps, images, labels, "eval")
+            self.model = resnet_model_multi.ResNet(hps, images, labels, "eval")
             self.model.build_graph()
             config = tf.ConfigProto(allow_soft_placement=True)
             sess = tf.Session(config=config)
