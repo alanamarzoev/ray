@@ -200,9 +200,10 @@ class ResNetTestActor(object):
 
 
 def train():
+    print("hi")
     num_gpus = FLAGS.num_gpus
-    num_machines = len(ray.global_state.client_table.keys())
-    ray.init(num_gpus=num_gpus, redirect_output=True)
+    ray.init(num_gpus=num_gpus, redirect_output=False)
+    num_machines = len(ray.global_state.client_table().keys())
     train_data = get_data.remote(FLAGS.train_data_path, 50000, FLAGS.dataset)
     test_data = get_data.remote(FLAGS.eval_data_path, 10000, FLAGS.dataset)
 
