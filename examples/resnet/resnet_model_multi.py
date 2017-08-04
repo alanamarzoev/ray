@@ -16,6 +16,7 @@ import numpy as np
 import ray
 import tensorflow as tf
 from tensorflow.python.training import moving_averages
+from ray.rllib.parallel import LocalSyncParallelOptimizer
 
 HParams = namedtuple('HParams',
                      'batch_size, num_classes, min_lrn_rate, lrn_rate, '
@@ -72,6 +73,7 @@ class ResNet(object):
             (self.batch_size)/num_gpus,
             build_loss,
             self.logdir)
+
 
     def build_graph(self):
         """Build a whole graph for the model."""
