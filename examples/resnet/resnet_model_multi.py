@@ -75,7 +75,7 @@ class ResNet(object):
             [self._images, self.labels],
             (hps.batch_size/8),
             build_loss,
-            self.logdir)
+            "idk")
         print("BYEEEE")
 
     def build_graph(self):
