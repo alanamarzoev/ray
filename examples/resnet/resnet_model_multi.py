@@ -14,6 +14,7 @@ from __future__ import print_function
 from collections import namedtuple
 import numpy as np
 import ray
+import os
 import tensorflow as tf
 from tensorflow.python.training import moving_averages
 from ray.rllib.parallel import LocalSyncParallelOptimizer
