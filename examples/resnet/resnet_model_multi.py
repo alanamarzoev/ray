@@ -48,7 +48,7 @@ class ResNet(object):
         #     os.environ["CUDA_VISIBLE_DEVICES"] = ""
         #     devices = ["/cpu:0"]
         # else:
-        if num_gpus > 0:
+        if hps.num_gpus > 0:
             os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
                 [str(i) for i in ray.get_gpu_ids()])
             devices = os.environ["CUDA_VISIBLE_DEVICES"]

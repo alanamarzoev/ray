@@ -61,7 +61,7 @@ def get_data(path, size, dataset):
 @ray.remote(num_gpus=use_gpu)
 class ResNetTrainActor(object):
     def __init__(self, data, dataset, num_gpus):
-        if num_gpus > 0:
+        if FLAGS.num_gpus > 0:
             os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
                 [str(i) for i in ray.get_gpu_ids()])
 
