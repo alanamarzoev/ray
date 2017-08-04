@@ -72,7 +72,7 @@ class ResNet(object):
             hps.optimizer,
             self.devices,
             [self._images, self.labels],
-            (hps.batch_size/hps.num_gpus),
+            (hps.batch_size/8),
             build_loss,
             self.logdir)
         print("BYEEEE")
