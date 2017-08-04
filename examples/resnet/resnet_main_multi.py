@@ -13,7 +13,7 @@ import ray
 import tensorflow as tf
 
 import cifar_input
-import resnet_model
+import resnet_model_multi 
 
 # Tensorflow must be at least version 1.0.0 for the example to work.
 if int(tf.__version__.split(".")[0]) < 1:
@@ -93,7 +93,7 @@ class ResNetTrainActor(object):
                                                       input_labels],
                                                      hps.batch_size, dataset,
                                                      False)
-            self.model = resnet_model.ResNet(hps, images, labels, "train")
+            self.model = resnet_model_multi.ResNet(hps, images, labels, "train")
             self.model.build_graph()
             config = tf.ConfigProto(allow_soft_placement=True)
             sess = tf.Session(config=config)
