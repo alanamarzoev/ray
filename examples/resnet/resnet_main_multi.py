@@ -134,7 +134,7 @@ class ResNetTestActor(object):
             weight_decay_rate=0.0002,
             relu_leakiness=0.1,
             optimizer="mom",
-            num_gpus=0)
+            num_gpus=1)
         input_images = data[0]
         input_labels = data[1]
         with tf.device("/cpu:0"):
