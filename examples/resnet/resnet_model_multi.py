@@ -71,7 +71,7 @@ class ResNet(object):
         self.par_opt = LocalSyncParallelOptimizer(
             hps.optimizer,
             self.devices,
-            [self._images, self.labels, self.predictions],
+            [self._images, self.labels],
             (self.batch_size)/num_gpus,
             build_loss,
             self.logdir)
