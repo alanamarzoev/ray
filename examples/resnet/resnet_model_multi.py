@@ -44,14 +44,14 @@ class ResNet(object):
 
         self._extra_train_ops = []
 
-        if is_remote:
-            os.environ["CUDA_VISIBLE_DEVICES"] = ""
-            devices = ["/cpu:0"]
-        else:
-            if num_gpus > 0:
-                os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
-                    [str(i) for i in ray.get_gpu_ids()])
-                devices = os.environ["CUDA_VISIBLE_DEVICES"]
+        # if is_remote:
+        #     os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        #     devices = ["/cpu:0"]
+        # else:
+        if num_gpus > 0:
+            os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
+                [str(i) for i in ray.get_gpu_ids()])
+            devices = os.environ["CUDA_VISIBLE_DEVICES"]
 
         self.devices = devices
 
