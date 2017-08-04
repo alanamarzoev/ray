@@ -65,7 +65,7 @@ class ResNet(object):
                     tf.summary.scalar('cost', self.cost)
 
             return self.cost
-
+        print('HIIII init par opt')
         self.par_opt = LocalSyncParallelOptimizer(
             hps.optimizer,
             self.devices,
@@ -73,7 +73,7 @@ class ResNet(object):
             (self.batch_size)/num_gpus,
             build_loss,
             self.logdir)
-
+        print("BYEEEE")
 
     def build_graph(self):
         """Build a whole graph for the model."""
