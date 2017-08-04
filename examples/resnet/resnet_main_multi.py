@@ -64,7 +64,7 @@ class ResNetTrainActor(object):
         if num_gpus > 0:
             os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
                 [str(i) for i in ray.get_gpu_ids()])
-
+        print("HI THE NUM OF GPUS IS " + str(num_gpus))
         hps = resnet_model_multi.HParams(
             batch_size=128,
             num_classes=100 if dataset == "cifar100" else 10,
@@ -210,6 +210,7 @@ def train():
     # Creates an actor for each machine. Each actor has access to the dataset.
     if FLAGS.num_gpus > 0:
         print("SUPPPP" + str(FLAGS.num_gpus))
+        num_gpus = FLAGS.num_gpus
         train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset,
                                                 num_gpus)
                         for _ in range(num_machines)]
