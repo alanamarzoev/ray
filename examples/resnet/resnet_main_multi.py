@@ -61,7 +61,7 @@ def get_data(path, size, dataset):
 @ray.remote(num_gpus=use_gpu)
 class ResNetTrainActor(object):
     def __init__(self, data, dataset, num_gpus):
-        if FLAGS.num_gpus > 0:
+        if num_gpus > 0:
             os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
                 [str(i) for i in ray.get_gpu_ids()])
 
@@ -210,7 +210,7 @@ def train():
     # Creates an actor for each machine. Each actor has access to the dataset.
     if FLAGS.num_gpus > 0:
         train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset,
-                                                num_gpus=num_gpus)
+                                                num_gpus)
                         for _ in range(num_machines)]
     else:
         train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset, 0)]
