@@ -205,9 +205,9 @@ def train():
     ray.init(num_gpus=num_gpus, redirect_output=False)
     num_machines = len(ray.global_state.client_table().keys())
     train_data = get_data.remote(FLAGS.train_data_path, 50000, FLAGS.dataset)
-    print(shape(train_data))
+    print(np.shape(train_data))
     test_data = get_data.remote(FLAGS.eval_data_path, 10000, FLAGS.dataset)
-    print(shape(test_data))
+    print(np.shape(test_data))
     # Creates an actor for each machine. Each actor has access to the dataset.
     if FLAGS.num_gpus > 0:
         print("SUPPPP" + str(FLAGS.num_gpus))
