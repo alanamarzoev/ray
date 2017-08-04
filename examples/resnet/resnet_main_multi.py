@@ -64,6 +64,7 @@ class ResNetTrainActor(object):
         if num_gpus > 0:
             os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
                 [str(i) for i in ray.get_gpu_ids()])
+
         hps = resnet_model.HParams(
             batch_size=128,
             num_classes=100 if dataset == "cifar100" else 10,
@@ -78,11 +79,11 @@ class ResNetTrainActor(object):
 
         # We seed each actor differently so that each actor operates on a
         # different subset of data.
-        if num_gpus > 0:
-            tf.set_random_seed(ray.get_gpu_ids()[0] + 1)
-        else:
-            # Only a single actor in this case.
-            tf.set_random_seed(1)
+        # if num_gpus > 0:
+        #     tf.set_random_seed(ray.get_gpu_ids()[0] + 1)
+        # else:
+        #     # Only a single actor in this case.
+        #     tf.set_random_seed(1)
 
         input_images = data[0]
         input_labels = data[1]
@@ -108,7 +109,9 @@ class ResNetTrainActor(object):
         # self.steps times, and returns the new weights.
         self.model.variables.set_weights(weights)
         for i in range(self.steps):
-            self.model.variables.sess.run(self.model.train_op)
+            self.par_opt.optimize(self.model.variables.sess, i,
+                                  extra_ops=self.model.train_op)
+            # self.model.variables.sess.run(self.model.train_op)
         return self.model.variables.get_weights()
 
     def get_weights(self):
@@ -144,6 +147,7 @@ class ResNetTestActor(object):
             config = tf.ConfigProto(allow_soft_placement=True)
             sess = tf.Session(config=config)
             self.model.variables.set_session(sess)
+            self.model.par_opt.load_data(sess, iamges)
             self.coord = tf.train.Coordinator()
             tf.train.start_queue_runners(sess, coord=self.coord)
             init = tf.global_variables_initializer()
@@ -205,10 +209,11 @@ def train():
     # Creates an actor for each machine. Each actor has access to the dataset.
     if FLAGS.num_gpus > 0:
         train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset,
-                                                num_gpus)
+                                                num_gpus=num_gpus)
                         for _ in range(num_machines)]
     else:
         train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset, 0)]
+
     test_actor = ResNetTestActor.remote(test_data, FLAGS.dataset,
                                         FLAGS.eval_batch_count, FLAGS.eval_dir)
     print("The log files for tensorboard are stored at ip {}."

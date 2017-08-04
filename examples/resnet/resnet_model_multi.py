@@ -43,6 +43,36 @@ class ResNet(object):
 
         self._extra_train_ops = []
 
+        if is_remote:
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
+            devices = ["/cpu:0"]
+        else:
+            if num_gpus > 0:
+                os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
+                    [str(i) for i in ray.get_gpu_ids()])
+                devices = os.environ["CUDA_VISIBLE_DEVICES"]
+
+        self.devices = devices
+
+        def build_loss(logits, labels):
+            with tf.variable_scope('costs'):
+                xent = tf.nn.softmax_cross_entropy_with_logits(
+                    logits=logits, labels=self.labels)
+                self.cost = tf.reduce_mean(xent, name='xent')
+                self.cost += self._decay()
+                if self.mode == 'eval':
+                    tf.summary.scalar('cost', self.cost)
+
+            return self.cost
+
+        self.par_opt = LocalSyncParallelOptimizer(
+            hps.optimizer,
+            self.devices,
+            [self.images, self.labels, self.logits],
+            (self.batch_size)/num_gpus,
+            build_loss,
+            self.logdir)
+
     def build_graph(self):
         """Build a whole graph for the model."""
         self.global_step = tf.Variable(0, trainable=False)
