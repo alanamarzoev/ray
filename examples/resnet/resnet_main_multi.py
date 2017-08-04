@@ -209,8 +209,7 @@ def train():
 
     # Creates an actor for each machine. Each actor has access to the dataset.
     if FLAGS.num_gpus > 0:
-        print("SUPPPP")
-        print("num: " + str(FLAGS.num_gpus))
+        print("SUPPPP" + str(FLAGS.num_gpus))
         train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset,
                                                 num_gpus)
                         for _ in range(num_machines)]
