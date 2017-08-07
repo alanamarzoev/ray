@@ -237,9 +237,9 @@ def train():
     print("Starting training loop. Use Ctrl-C to exit.")
     try:
         while True:
-            all_weights = ray.get([actor.compute_steps.remote(weight_id)
-                                   for actor in train_actors])
-            # mean_weights = {k: (sum([weights[k] for weights in all_weights]) /
+            # all_weights = ray.get([actor.compute_steps.remote(weight_id)
+            #                        for actor in train_actors])
+            # # mean_weights = {k: (sum([weights[k] for weights in all_weights]) /
             #                     num_machines)
             #                 for k in all_weights[0]}
             # weight_id = ray.put(mean_weights)
