@@ -226,8 +226,8 @@ def train():
 
     test_actor = ResNetTestActor.remote(test_data, FLAGS.dataset,
                                         FLAGS.eval_batch_count, FLAGS.eval_dir)
-    # print("The log files for tensorboard are stored at ip {}."
-    #       .format(ray.get(test_actor.get_ip_addr.remote())))
+    print("The log files for tensorboard are stored at ip {}."
+          .format(ray.get(test_actor.get_ip_addr.remote())))
     step = 0
     weight_id = train_actors[0].get_weights.remote()
     acc_id = test_actor.accuracy.remote(weight_id, step)
