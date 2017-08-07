@@ -250,8 +250,8 @@ def train():
     #             acc = ray.get(acc_id)
     #             acc_id = test_actor.accuracy.remote(weight_id, step)
     #             print("Step {0}: {1:.6f}".format(step - 200, acc))
-    # except KeyboardInterrupt:
-    #     pass
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":
