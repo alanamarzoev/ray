@@ -211,8 +211,8 @@ def train():
     print(train_data)
     test_data = get_data.remote(FLAGS.eval_data_path, 10000, FLAGS.dataset)
 
-    import IPython
-    IPython.embed()
+    # import IPython
+    # IPython.embed()
     #print(list(x.shape for x in test_data))
     # Creates an actor for each machine. Each actor has access to the dataset.
     if FLAGS.num_gpus > 0:
@@ -239,11 +239,11 @@ def train():
         while True:
             all_weights = ray.get([actor.compute_steps.remote(weight_id)
                                    for actor in train_actors])
-            mean_weights = {k: (sum([weights[k] for weights in all_weights]) /
-                                num_machines)
-                            for k in all_weights[0]}
-            weight_id = ray.put(mean_weights)
-            step += 10
+            # mean_weights = {k: (sum([weights[k] for weights in all_weights]) /
+            #                     num_machines)
+            #                 for k in all_weights[0]}
+            # weight_id = ray.put(mean_weights)
+            # step += 10
     #         if step % 200 == 0:
     #             # Retrieves the previously computed accuracy and launches a new
     #             # testing task with the current weights every 200 steps.
