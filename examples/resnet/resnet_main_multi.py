@@ -225,7 +225,7 @@ def train():
         train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset, 0)]
 
     test_actor = ResNetTestActor.remote(test_data, FLAGS.dataset,
-    #                                     FLAGS.eval_batch_count, FLAGS.eval_dir)
+                                        FLAGS.eval_batch_count, FLAGS.eval_dir)
     # print("The log files for tensorboard are stored at ip {}."
     #       .format(ray.get(test_actor.get_ip_addr.remote())))
     # step = 0
