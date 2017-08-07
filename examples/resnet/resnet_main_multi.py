@@ -68,7 +68,7 @@ class ResNetTrainActor(object):
                 [str(i) for i in ray.get_gpu_ids()])
         print("HI THE NUM OF GPUS IS " + str(num_gpus))
         hps = resnet_model_multi.HParams(
-            batch_size=128,
+            batch_size=100,
             num_classes=100 if dataset == "cifar100" else 10,
             min_lrn_rate=0.0001,
             lrn_rate=0.1,
