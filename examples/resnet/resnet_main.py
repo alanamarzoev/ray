@@ -202,6 +202,8 @@ def train():
     test_data = get_data.remote(FLAGS.eval_data_path, 10000, FLAGS.dataset)
     # Creates an actor for each gpu, or one if only using the cpu. Each actor
     # has access to the dataset.
+    import IPython
+    IPython.embed()
     if FLAGS.num_gpus > 0:
         train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset,
                                                 num_gpus)
