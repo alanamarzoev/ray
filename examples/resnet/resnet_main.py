@@ -204,40 +204,40 @@ def train():
     # has access to the dataset.
     import IPython
     IPython.embed()
-    if FLAGS.num_gpus > 0:
-        train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset,
-                                                num_gpus)
-                        for _ in range(num_gpus)]
-    else:
-        train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset, 0)]
-    test_actor = ResNetTestActor.remote(test_data, FLAGS.dataset,
-                                        FLAGS.eval_batch_count, FLAGS.eval_dir)
-    print("The log files for tensorboard are stored at ip {}."
-          .format(ray.get(test_actor.get_ip_addr.remote())))
-    step = 0
-    weight_id = train_actors[0].get_weights.remote()
-    acc_id = test_actor.accuracy.remote(weight_id, step)
-    # Correction for dividing the weights by the number of gpus.
-    if num_gpus == 0:
-        num_gpus = 1
-    print("Starting training loop. Use Ctrl-C to exit.")
-    try:
-        while True:
-            all_weights = ray.get([actor.compute_steps.remote(weight_id)
-                                   for actor in train_actors])
-            mean_weights = {k: (sum([weights[k] for weights in all_weights]) /
-                                num_gpus)
-                            for k in all_weights[0]}
-            weight_id = ray.put(mean_weights)
-            step += 10
-            if step % 200 == 0:
-                # Retrieves the previously computed accuracy and launches a new
-                # testing task with the current weights every 200 steps.
-                acc = ray.get(acc_id)
-                acc_id = test_actor.accuracy.remote(weight_id, step)
-                print("Step {0}: {1:.6f}".format(step - 200, acc))
-    except KeyboardInterrupt:
-        pass
+    # if FLAGS.num_gpus > 0:
+    #     train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset,
+    #                                             num_gpus)
+    #                     for _ in range(num_gpus)]
+    # else:
+    #     train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset, 0)]
+    # test_actor = ResNetTestActor.remote(test_data, FLAGS.dataset,
+    #                                     FLAGS.eval_batch_count, FLAGS.eval_dir)
+    # print("The log files for tensorboard are stored at ip {}."
+    #       .format(ray.get(test_actor.get_ip_addr.remote())))
+    # step = 0
+    # weight_id = train_actors[0].get_weights.remote()
+    # acc_id = test_actor.accuracy.remote(weight_id, step)
+    # # Correction for dividing the weights by the number of gpus.
+    # if num_gpus == 0:
+    #     num_gpus = 1
+    # print("Starting training loop. Use Ctrl-C to exit.")
+    # try:
+    #     while True:
+    #         all_weights = ray.get([actor.compute_steps.remote(weight_id)
+    #                                for actor in train_actors])
+    #         mean_weights = {k: (sum([weights[k] for weights in all_weights]) /
+    #                             num_gpus)
+    #                         for k in all_weights[0]}
+    #         weight_id = ray.put(mean_weights)
+    #         step += 10
+    #         if step % 200 == 0:
+    #             # Retrieves the previously computed accuracy and launches a new
+    #             # testing task with the current weights every 200 steps.
+    #             acc = ray.get(acc_id)
+    #             acc_id = test_actor.accuracy.remote(weight_id, step)
+    #             print("Step {0}: {1:.6f}".format(step - 200, acc))
+    # except KeyboardInterrupt:
+    #     pass
 
 
 if __name__ == "__main__":
