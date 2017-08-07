@@ -46,7 +46,7 @@ use_gpu = 8 if int(FLAGS.num_gpus) > 0 else 8
 def get_data(path, size, dataset):
     # Retrieves all preprocessed images and labels using a tensorflow queue.
     # This only uses the cpu.
-    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    # os.environ["CUDA_VISIBLE_DEVICES"] = ""
     with tf.device("/cpu:0"):
         queue = cifar_input.build_data(path, size, dataset)
         sess = tf.Session()
