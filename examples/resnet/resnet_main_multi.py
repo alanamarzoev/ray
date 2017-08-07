@@ -89,7 +89,7 @@ class ResNetTrainActor(object):
 
         input_images = data[0]
         input_labels = data[1]
-        print((input_images.shape)
+        print(input_images.shape)
         with tf.device("/gpu:0" if num_gpus > 0 else "/cpu:0"):
             # Build the model.
             images, labels = cifar_input.build_input([input_images,
