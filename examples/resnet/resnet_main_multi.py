@@ -235,7 +235,7 @@ def train():
     if num_gpus == 0:
         num_gpus = 1
     print("Starting training loop. Use Ctrl-C to exit.")
-    try:
+    #try:
         #while True:
             # all_weights = ray.get([actor.compute_steps.remote(weight_id)
             #                        for actor in train_actors])
@@ -250,8 +250,8 @@ def train():
     #             acc = ray.get(acc_id)
     #             acc_id = test_actor.accuracy.remote(weight_id, step)
     #             print("Step {0}: {1:.6f}".format(step - 200, acc))
-    except KeyboardInterrupt:
-        pass
+    # except KeyboardInterrupt:
+    #     pass
 
 
 if __name__ == "__main__":
