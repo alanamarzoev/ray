@@ -228,13 +228,13 @@ def train():
                                         FLAGS.eval_batch_count, FLAGS.eval_dir)
     # print("The log files for tensorboard are stored at ip {}."
     #       .format(ray.get(test_actor.get_ip_addr.remote())))
-    # step = 0
-    #weight_id = train_actors[0].get_weights.remote()
-    # acc_id = test_actor.accuracy.remote(weight_id, step)
-    # # Correction for dividing the weights by the number of gpus.
-    # if num_gpus == 0:
-    #     num_gpus = 1
-    # print("Starting training loop. Use Ctrl-C to exit.")
+    step = 0
+    weight_id = train_actors[0].get_weights.remote()
+    acc_id = test_actor.accuracy.remote(weight_id, step)
+    # Correction for dividing the weights by the number of gpus.
+    if num_gpus == 0:
+        num_gpus = 1
+    print("Starting training loop. Use Ctrl-C to exit.")
     #try:
         #while True:
             # all_weights = ray.get([actor.compute_steps.remote(weight_id)
