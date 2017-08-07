@@ -229,7 +229,7 @@ def train():
     print("The log files for tensorboard are stored at ip {}."
           .format(ray.get(test_actor.get_ip_addr.remote())))
     step = 0
-    weight_id = train_actors[0].get_weights.remote()
+    #weight_id = train_actors[0].get_weights.remote()
     # acc_id = test_actor.accuracy.remote(weight_id, step)
     # # Correction for dividing the weights by the number of gpus.
     # if num_gpus == 0:
