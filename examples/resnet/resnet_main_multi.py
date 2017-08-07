@@ -210,6 +210,9 @@ def train():
     train_data = get_data.remote(FLAGS.train_data_path, 50000, FLAGS.dataset)
     print(train_data)
     test_data = get_data.remote(FLAGS.eval_data_path, 10000, FLAGS.dataset)
+
+    import IPython
+    IPython.embed()
     #print(list(x.shape for x in test_data))
     # Creates an actor for each machine. Each actor has access to the dataset.
     if FLAGS.num_gpus > 0:
