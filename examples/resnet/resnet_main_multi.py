@@ -235,23 +235,23 @@ def train():
     if num_gpus == 0:
         num_gpus = 1
     print("Starting training loop. Use Ctrl-C to exit.")
-    try:
-        while True:
-            all_weights = ray.get([actor.compute_steps.remote(weight_id)
-                                   for actor in train_actors])
-            mean_weights = {k: (sum([weights[k] for weights in all_weights]) /
-                                num_machines)
-                            for k in all_weights[0]}
-            weight_id = ray.put(mean_weights)
-            step += 10
-            if step % 200 == 0:
-                # Retrieves the previously computed accuracy and launches a new
-                # testing task with the current weights every 200 steps.
-                acc = ray.get(acc_id)
-                acc_id = test_actor.accuracy.remote(weight_id, step)
-                print("Step {0}: {1:.6f}".format(step - 200, acc))
-    except KeyboardInterrupt:
-        pass
+    # try:
+    #     while True:
+    #         all_weights = ray.get([actor.compute_steps.remote(weight_id)
+    #                                for actor in train_actors])
+    #         mean_weights = {k: (sum([weights[k] for weights in all_weights]) /
+    #                             num_machines)
+    #                         for k in all_weights[0]}
+    #         weight_id = ray.put(mean_weights)
+    #         step += 10
+    #         if step % 200 == 0:
+    #             # Retrieves the previously computed accuracy and launches a new
+    #             # testing task with the current weights every 200 steps.
+    #             acc = ray.get(acc_id)
+    #             acc_id = test_actor.accuracy.remote(weight_id, step)
+    #             print("Step {0}: {1:.6f}".format(step - 200, acc))
+    # except KeyboardInterrupt:
+    #     pass
 
 
 if __name__ == "__main__":
