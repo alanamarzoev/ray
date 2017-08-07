@@ -53,6 +53,8 @@ def get_data(path, size, dataset):
         coord = tf.train.Coordinator()
         tf.train.start_queue_runners(sess, coord=coord)
         images, labels = sess.run(queue)
+        print("HERE1")
+        print((images.shape, labels.shape))
         coord.request_stop()
         sess.close()
         return images, labels
@@ -87,6 +89,7 @@ class ResNetTrainActor(object):
 
         input_images = data[0]
         input_labels = data[1]
+        print((input_images.shape)
         with tf.device("/gpu:0" if num_gpus > 0 else "/cpu:0"):
             # Build the model.
             images, labels = cifar_input.build_input([input_images,
@@ -205,7 +208,7 @@ def train():
     ray.init(num_gpus=num_gpus, redirect_output=False)
     num_machines = len(ray.global_state.client_table().keys())
     train_data = get_data.remote(FLAGS.train_data_path, 50000, FLAGS.dataset)
-    print(list(x.shape for x in train_data))
+    print(train_data)
     test_data = get_data.remote(FLAGS.eval_data_path, 10000, FLAGS.dataset)
     print(list(x.shape for x in test_data))
     # Creates an actor for each machine. Each actor has access to the dataset.
