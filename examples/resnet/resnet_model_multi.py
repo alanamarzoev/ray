@@ -60,11 +60,11 @@ class ResNet(object):
 
         def build_loss():
             return tf.get_variable("costs")
-            
+
         self.par_opt = LocalSyncParallelOptimizer(
             hps.optimizer,
             self.devices,
-            [self._images, self.labels],
+            [],
             (hps.batch_size/8),
             build_loss,
             "~/")
