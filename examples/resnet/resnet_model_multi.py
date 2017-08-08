@@ -61,7 +61,7 @@ class ResNet(object):
         def build_loss(logits, labels):
             with tf.variable_scope('costs'):
                 xent = tf.nn.softmax_cross_entropy_with_logits(
-                    logits=self._images, labels=self.labels)
+                    logits=logits, labels=labels)
                 self.cost = tf.reduce_mean(xent, name='xent')
                 self.cost += self._decay()
                 if self.mode == 'eval':
