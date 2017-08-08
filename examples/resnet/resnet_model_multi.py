@@ -71,7 +71,7 @@ class ResNet(object):
             return self.cost
 
         self.predictions = tf.placeholder(
-            tf.float32, shape=(None,) + self.labels.shape)
+            tf.float32, shape=self.labels.shape)
 
         self.par_opt = LocalSyncParallelOptimizer(
             optimizer,
