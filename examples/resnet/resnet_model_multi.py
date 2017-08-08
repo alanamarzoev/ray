@@ -68,12 +68,12 @@ class ResNet(object):
                 logits=logits, labels=self.labels)
             self.cost = tf.reduce_mean(xent, name='xent')
             self.cost += self._decay()
-            return self.cost 
+            return self.cost
 
         self.par_opt = LocalSyncParallelOptimizer(
             optimizer,
             self.devices,
-            [],
+            [self.predictions],
             (hps.batch_size/8),
             build_loss,
             "~/")
