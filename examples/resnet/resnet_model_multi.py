@@ -70,6 +70,9 @@ class ResNet(object):
             self.cost += self._decay()
             return self.cost
 
+        self.predictions = tf.placeholder(
+            tf.float32, shape=(None,) + self.labels.shape)
+
         self.par_opt = LocalSyncParallelOptimizer(
             optimizer,
             self.devices,
