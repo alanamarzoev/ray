@@ -67,6 +67,8 @@ class LocalSyncParallelOptimizer(object):
                                                    device_placeholders))
 
         avg = average_gradients([t.grads for t in self._towers])
+        import IPython
+        IPython.embed()
         self._train_op = self.optimizer.apply_gradients(avg)
 
     def load_data(self, sess, inputs, full_trace=False):
