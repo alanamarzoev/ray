@@ -58,16 +58,9 @@ class ResNet(object):
 
         self.devices = devices
 
-        def build_loss(images, labels):
-            logits = self._fully_connected(x, self.hps.num_classes)
-            xent = tf.nn.softmax_cross_entropy_with_logits(
-                logits=logits, labels=self.labels)
-            self.cost = tf.reduce_mean(xent, name='xent')
-            self.cost += self._decay()
-            if self.mode == 'eval':
-                tf.summary.scalar('cost', self.cost)
-            return self.cost
-
+        def build_loss():
+            return tf.get_variable("costs")
+            
         self.par_opt = LocalSyncParallelOptimizer(
             hps.optimizer,
             self.devices,
