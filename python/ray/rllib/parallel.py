@@ -59,6 +59,7 @@ class LocalSyncParallelOptimizer(object):
 
         # Then setup the per-device loss graphs that use the shared weights
         self._batch_index = tf.placeholder(tf.int32)
+        print("hi")
         data_splits = zip(
             *[tf.split(ph, 10) for ph in input_placeholders])
         self._towers = []
