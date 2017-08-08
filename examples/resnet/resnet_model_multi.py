@@ -59,7 +59,7 @@ class ResNet(object):
         self.devices = devices
 
         def build_loss():
-            return tf.get_variable("costs")
+            return self.cost
 
         self.par_opt = LocalSyncParallelOptimizer(
             hps.optimizer,
