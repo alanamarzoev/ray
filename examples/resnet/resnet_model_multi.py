@@ -58,10 +58,10 @@ class ResNet(object):
 
         self.devices = devices
         if self.hps.optimizer == 'sgd':
-            optimizer = tf.train.GradientDescentOptimizer(self.lrn_rate)
+            optimizer = tf.train.GradientDescentOptimizer(self.hps.lrn_rate)
         elif self.hps.optimizer == 'mom':
-            optimizer = tf.train.MomentumOptimizer(self.lrn_rate, 0.9)
-            
+            optimizer = tf.train.MomentumOptimizer(self.hps.lrn_rate, 0.9)
+
         def build_loss():
             #x = tf.placeholder("a")
             return tf.get_variable("costs", [1])
