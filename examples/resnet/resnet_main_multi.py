@@ -124,7 +124,7 @@ class ResNetTrainActor(object):
         return self.model.variables.get_weights()
 
 
-@ray.remote
+# @ray.remote
 class ResNetTestActor(object):
     def __init__(self, data, dataset, eval_batch_count, eval_dir):
         hps = resnet_model_multi.HParams(
@@ -224,7 +224,7 @@ def train():
     else:
         train_actors = [ResNetTrainActor.remote(train_data, FLAGS.dataset, 0)]
 
-    test_actor = ResNetTestActor.remote(test_data, FLAGS.dataset,
+    test_actor = ResNetTestActor(test_data, FLAGS.dataset,
                                         FLAGS.eval_batch_count, FLAGS.eval_dir)
     print("The log files for tensorboard are stored at ip {}."
           .format(ray.get(test_actor.get_ip_addr.remote())))
