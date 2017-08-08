@@ -63,7 +63,7 @@ class ResNet(object):
             return tf.get_variable("costs", [1])
 
         self.par_opt = LocalSyncParallelOptimizer(
-            hps.optimizer,
+            self.hps.optimizer,
             self.devices,
             [],
             (hps.batch_size/8),
