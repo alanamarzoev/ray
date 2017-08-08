@@ -140,6 +140,8 @@ class ResNetTestActor(object):
             num_gpus=1)
         input_images = data[0]
         input_labels = data[1]
+        import IPython
+        IPython.embed() 
         with tf.device("/cpu:0"):
             # Builds the testing network.
             images, labels = cifar_input.build_input([input_images,
