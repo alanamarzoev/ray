@@ -58,7 +58,7 @@ class ResNet(object):
 
         self.devices = devices
 
-        def build_loss(labels):
+        def build_loss(images, labels):
             logits = self._fully_connected(x, self.hps.num_classes)
             xent = tf.nn.softmax_cross_entropy_with_logits(
                 logits=logits, labels=self.labels)
@@ -74,7 +74,7 @@ class ResNet(object):
             [self._images, self.labels],
             (hps.batch_size/8),
             build_loss,
-            "idk")
+            "~/")
 
     def build_graph(self):
         """Build a whole graph for the model."""
