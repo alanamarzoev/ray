@@ -57,14 +57,18 @@ class ResNet(object):
             devices = ["/cpu:0"]
 
         self.devices = devices
+
         if self.hps.optimizer == 'sgd':
             optimizer = tf.train.GradientDescentOptimizer(self.hps.lrn_rate)
         elif self.hps.optimizer == 'mom':
             optimizer = tf.train.MomentumOptimizer(self.hps.lrn_rate, 0.9)
 
-        def build_loss():
-            #x = tf.placeholder("a")
-            return tf.get_variable("costs", [1])
+        def build_loss(logits):
+            xent = tf.nn.softmax_cross_entropy_with_logits(
+                logits=logits, labels=self.labels)
+            self.cost = tf.reduce_mean(xent, name='xent')
+            self.cost += self._decay()
+            return self.cost 
 
         self.par_opt = LocalSyncParallelOptimizer(
             optimizer,
