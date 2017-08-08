@@ -58,17 +58,16 @@ class ResNet(object):
 
         self.devices = devices
 
-        def build_loss(logits, labels):
-            with tf.variable_scope('costs'):
-                xent = tf.nn.softmax_cross_entropy_with_logits(
-                    logits=logits, labels=labels)
-                self.cost = tf.reduce_mean(xent, name='xent')
-                self.cost += self._decay()
-                if self.mode == 'eval':
-                    tf.summary.scalar('cost', self.cost)
-
+        def build_loss(labels):
+            logits = self._fully_connected(x, self.hps.num_classes)
+            xent = tf.nn.softmax_cross_entropy_with_logits(
+                logits=logits, labels=self.labels)
+            self.cost = tf.reduce_mean(xent, name='xent')
+            self.cost += self._decay()
+            if self.mode == 'eval':
+                tf.summary.scalar('cost', self.cost)
             return self.cost
-        print('HIIII init par opt')
+
         self.par_opt = LocalSyncParallelOptimizer(
             hps.optimizer,
             self.devices,
@@ -76,7 +75,6 @@ class ResNet(object):
             (hps.batch_size/8),
             build_loss,
             "idk")
-        print("BYEEEE")
 
     def build_graph(self):
         """Build a whole graph for the model."""
