@@ -57,13 +57,17 @@ class ResNet(object):
             devices = ["/cpu:0"]
 
         self.devices = devices
-
+        if self.hps.optimizer == 'sgd':
+            optimizer = tf.train.GradientDescentOptimizer(self.lrn_rate)
+        elif self.hps.optimizer == 'mom':
+            optimizer = tf.train.MomentumOptimizer(self.lrn_rate, 0.9)
+            
         def build_loss():
             #x = tf.placeholder("a")
             return tf.get_variable("costs", [1])
 
         self.par_opt = LocalSyncParallelOptimizer(
-            self.hps.optimizer,
+            optimizer,
             self.devices,
             [],
             (hps.batch_size/8),
