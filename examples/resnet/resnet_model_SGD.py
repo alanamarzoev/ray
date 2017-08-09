@@ -59,7 +59,7 @@ class ResNet(object):
         """Map a stride scalar to the stride array for tf.nn.conv2d."""
         return [1, stride, stride, 1]
 
-    def _build_model(images, labels):
+    def _build_model(self, images, labels):
         """Build the core model within the graph."""
 
         with tf.variable_scope('init'):
@@ -111,6 +111,7 @@ class ResNet(object):
             self.predictions = tf.nn.softmax(logits)
 
         with tf.variable_scope('costs'):
+            print("LOGIT" + str(logits.shape))
             xent = tf.nn.softmax_cross_entropy_with_logits(
                 logits=logits, labels=labels)
             self.cost = tf.reduce_mean(xent, name='xent')

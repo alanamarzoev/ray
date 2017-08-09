@@ -66,121 +66,110 @@ def get_data(path, size, dataset):
         return images, labels
 
 
-def train():
-    num_gpus = FLAGS.num_gpus
-    ray.init(num_gpus=num_gpus, redirect_output=True)
-    train_data = get_data(FLAGS.train_data_path, 50000, FLAGS.dataset)
-    num_sgd_iter = 5  # change this
-    data = {"images": train_data[0] , "labels": train_data[1]}
-    kl_coeff = 0.2
-    write_tf_logs = True
-    global_step = 0
-    j = 0
+def compute_steps():
+        num_gpus = FLAGS.num_gpus
+        ray.init(num_gpus=num_gpus, redirect_output=False)
+        train_data = get_data(FLAGS.train_data_path, 50000, FLAGS.dataset)
+        num_sgd_iter = 5  # change this
+        data = {"images": train_data[0] , "labels": train_data[1]}
+        kl_coeff = 0.2
+        write_tf_logs = True
+        global_step = 0
+        j = 0
+        dataset = FLAGS.dataset
+        hps = resnet_model_SGD.HParams(
+            batch_size=100,
+            num_classes=100 if dataset == "cifar100" else 10,
+            min_lrn_rate=0.0001,
+            lrn_rate=0.1,
+            num_residual_units=5,
+            use_bottleneck=False,
+            weight_decay_rate=0.0002,
+            relu_leakiness=0.1,
+            optimizer="mom",
+            num_gpus=num_gpus)
 
-    hps = resnet_model_SGD.HParams(
-        batch_size=128,
-        num_classes=100 if dataset == "cifar100" else 10,
-        min_lrn_rate=0.0001,
-        lrn_rate=0.1,
-        num_residual_units=5,
-        use_bottleneck=False,
-        weight_decay_rate=0.0002,
-        relu_leakiness=0.1,
-        optimizer="mom",
-        num_gpus=num_gpus)
+        images = tf.placeholder(tf.float32, shape=(50000, 32, 32, 3))
+        labels = tf.placeholder(tf.float32, shape=(50000, 1))
 
-    model = resnet_model_SGD.ResNet(hps, images, labels, "train")
+        model = resnet_model_SGD.ResNet(hps, images, labels, "train")
 
-    if model.hps.optimizer == 'sgd':
-        optimizer = tf.train.GradientDescentOptimizer(model.hps.lrn_rate)
-    elif model.hps.optimizer == 'mom':
-        optimizer = tf.train.MomentumOptimizer(model.hps.lrn_rate, 0.9)
+        if model.hps.optimizer == 'sgd':
+            optimizer = tf.train.GradientDescentOptimizer(model.hps.lrn_rate)
+        elif model.hps.optimizer == 'mom':
+            optimizer = tf.train.MomentumOptimizer(model.hps.lrn_rate, 0.9)
 
-    if model.hps.num_gpus > 0:
-        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
-            [str(i) for i in ray.get_gpu_ids()])
-        devices = os.environ["CUDA_VISIBLE_DEVICES"]
-    else:
-        devices = ["/cpu:0"]
-
-    model.devices = devices
-    per_device_batch_size = int(model.hps.batch_size/max(1,num_gpus))
-
-    # TO - DO: create placeholders for images and labels, then pass in the actual
-    # data using load_data (they should be in the same order as where the PH are
-    # created.) See policy gradient for an example.
-
-    images = tf.placeholder(tf.float32, shape=data["images"].shape)
-    labels = tf.placeholder(tf.float32, shape=data["labels"].shape)
-
-    par_opt = LocalSyncParallelOptimizer
-        optimizer,
-        model.devices,
-        [images, labels],
-        per_device_batch_size,
-        model._build_model,
-        "~/")
-
-    # is_remote = False
-    #
-    # if is_remote:
-    #         config_proto = tf.ConfigProto()
-    # else:
-    #         config_proto = tf.ConfigProto(**config["tf_session_args"])
-    #     self.preprocessor = preprocessor
-    #     self.sess = tf.Session(config=config_proto)
-    sess = tf.Session()
-
-    tuples_per_device = par_opt.load_data(sess,
-            data, j == 0 and config["full_trace_data_load"])
-
-    # SGD loop
-    for i in range(num_sgd_iter):
-        sgd_start = time.time()
-        batch_index = 0
-        num_batches = (
-            int(tuples_per_device) // int(per_device_batch_size))
-        loss, kl, entropy = [], [], []
-        permutation = np.random.permutation(num_batches)
-        while batch_index < num_batches:
-            full_trace = (
-                i == 0 and j == 0 and
-                batch_index == config["full_trace_nth_sgd_batch"])
-            batch_loss, batch_kl, batch_entropy = model.run_sgd_minibatch(
-                permutation[batch_index] * model.per_device_batch_size,
-                kl_coeff, full_trace,
-                file_writer if write_tf_logs else None)
-            loss.append(batch_loss)
-            kl.append(batch_kl)
-            entropy.append(batch_entropy)
-            batch_index += 1
-        loss = np.mean(loss)
-        kl = np.mean(kl)
-        entropy = np.mean(entropy)
-        sgd_end = time.time()
-        print(
-            "{:>15}{:15.5e}{:15.5e}{:15.5e}".format(i, loss, kl, entropy))
-
-        values = []
-        if i == config["num_sgd_iter"] - 1:
-            metric_prefix = "policy_gradient/sgd/final_iter/"
-            values.append(tf.Summary.Value(
-                tag=metric_prefix + "kl_coeff",
-                simple_value=kl_coeff))
+        if model.hps.num_gpus > 0:
+            os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
+                [str(i) for i in ray.get_gpu_ids()])
+            devices = os.environ["CUDA_VISIBLE_DEVICES"]
         else:
-            metric_prefix = "policy_gradient/sgd/intermediate_iters/"
-        values.extend([
-            tf.Summary.Value(
-                tag=metric_prefix + "mean_entropy",
-                simple_value=entropy),
-            tf.Summary.Value(
-                tag=metric_prefix + "mean_loss",
-                simple_value=loss),
-            tf.Summary.Value(
-                tag=metric_prefix + "mean_kl",
-                simple_value=kl)])
-        if write_tf_logs:
-            sgd_stats = tf.Summary(value=values)
-            file_writer.add_summary(sgd_stats, global_step)
-        global_step += 1
-        sgd_time += sgd_end - sgd_start
+            devices = ["/cpu:0"]
+
+        model.devices = devices
+        per_device_batch_size = int(model.hps.batch_size/max(1,num_gpus))
+
+        par_opt = LocalSyncParallelOptimizer(
+            optimizer,
+            model.devices,
+            [images, labels],
+            per_device_batch_size,
+            model._build_model,
+            "~/")
+
+        sess = tf.Session()
+        print("HERE")
+        tuples_per_device = par_opt.load_data(sess,
+                [data["images"], data["labels"]], j == 0 and config["full_trace_data_load"])
+
+        # SGD loop
+        for i in range(num_sgd_iter):
+            print("HERE2")
+            sgd_start = time.time()
+            batch_index = 0
+            num_batches = (
+                int(tuples_per_device) // int(per_device_batch_size))
+            loss, kl, entropy = [], [], []
+            permutation = np.random.permutation(num_batches)
+            while batch_index < num_batches:
+                full_trace = (
+                    i == 0 and j == 0 and
+                    batch_index == config["full_trace_nth_sgd_batch"])
+                batch_loss, batch_kl, batch_entropy = model.run_sgd_minibatch(
+                    permutation[batch_index] * model.per_device_batch_size,
+                    kl_coeff, full_trace,
+                    file_writer if write_tf_logs else None)
+                loss.append(batch_loss)
+                kl.append(batch_kl)
+                entropy.append(batch_entropy)
+                batch_index += 1
+            loss = np.mean(loss)
+            kl = np.mean(kl)
+            entropy = np.mean(entropy)
+            sgd_end = time.time()
+            print(
+                "{:>15}{:15.5e}{:15.5e}{:15.5e}".format(i, loss, kl, entropy))
+
+            values = []
+            if i == config["num_sgd_iter"] - 1:
+                metric_prefix = "policy_gradient/sgd/final_iter/"
+                values.append(tf.Summary.Value(
+                    tag=metric_prefix + "kl_coeff",
+                    simple_value=kl_coeff))
+            else:
+                metric_prefix = "policy_gradient/sgd/intermediate_iters/"
+            values.extend([
+                tf.Summary.Value(
+                    tag=metric_prefix + "mean_entropy",
+                    simple_value=entropy),
+                tf.Summary.Value(
+                    tag=metric_prefix + "mean_loss",
+                    simple_value=loss),
+                tf.Summary.Value(
+                    tag=metric_prefix + "mean_kl",
+                    simple_value=kl)])
+            if write_tf_logs:
+                sgd_stats = tf.Summary(value=values)
+                file_writer.add_summary(sgd_stats, global_step)
+            global_step += 1
+            sgd_time += sgd_end - sgd_start

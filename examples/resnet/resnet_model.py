@@ -43,9 +43,6 @@ class ResNet(object):
 
         self._extra_train_ops = []
 
-    def build_loss(images, labels): 
-        return self.costs
-
     # Dont need this?
     # def build_graph(self):
     #     """Build a whole graph for the model."""
@@ -286,7 +283,7 @@ class ResNet(object):
 
     def _fully_connected(self, x, out_dim):
         """FullyConnected layer for final output."""
-        x = tf.reshape(x, [self.hps.batch_size, -1])
+        #x = tf.reshape(x, [self.hps.batch_size, -1])
         w = tf.get_variable(
             'DW', [x.get_shape()[1], out_dim],
             initializer=tf.uniform_unit_scaling_initializer(factor=1.0))
