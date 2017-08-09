@@ -65,7 +65,6 @@ def get_data(path, size, dataset):
         print(type(images), type(labels))
         return images, labels
 
-
 def compute_steps():
         num_gpus = FLAGS.num_gpus
         ray.init(num_gpus=num_gpus, redirect_output=False)
@@ -78,7 +77,7 @@ def compute_steps():
         j = 0
         dataset = FLAGS.dataset
         hps = resnet_model_SGD.HParams(
-            batch_size=100,
+            batch_size=10,
             num_classes=100 if dataset == "cifar100" else 10,
             min_lrn_rate=0.0001,
             lrn_rate=0.1,
@@ -89,8 +88,8 @@ def compute_steps():
             optimizer="mom",
             num_gpus=num_gpus)
 
-        images = tf.placeholder(tf.float32, shape=(50000, 32, 32, 3))
-        labels = tf.placeholder(tf.float32, shape=(50000, 1))
+        images = tf.placeholder(tf.float32, shape=(None, 32, 32, 3))
+        labels = tf.placeholder(tf.float32, shape=(None, 10))
 
         model = resnet_model_SGD.ResNet(hps, images, labels, "train")
 
@@ -107,13 +106,13 @@ def compute_steps():
             devices = ["/cpu:0"]
 
         model.devices = devices
-        per_device_batch_size = int(model.hps.batch_size/max(1,num_gpus))
+
 
         par_opt = LocalSyncParallelOptimizer(
             optimizer,
             model.devices,
             [images, labels],
-            per_device_batch_size,
+            hps.batch_size,
             model._build_model,
             "~/")
 
