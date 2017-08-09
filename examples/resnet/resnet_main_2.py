@@ -239,6 +239,56 @@ def train():
     except KeyboardInterrupt:
         pass
 
+    for i in range(config["num_sgd_iter"]):
+            sgd_start = time.time()
+            batch_index = 0
+            num_batches = (
+                int(tuples_per_device) // int(model.per_device_batch_size))
+            loss, kl, entropy = [], [], []
+            permutation = np.random.permutation(num_batches)
+            while batch_index < num_batches:
+                full_trace = (
+                    i == 0 and j == 0 and
+                    batch_index == config["full_trace_nth_sgd_batch"])
+                batch_loss, batch_kl, batch_entropy = model.run_sgd_minibatch(
+                    permutation[batch_index] * model.per_device_batch_size,
+                    self.kl_coeff, full_trace,
+                    file_writer if write_tf_logs else None)
+                loss.append(batch_loss)
+                kl.append(batch_kl)
+                entropy.append(batch_entropy)
+                batch_index += 1
+            loss = np.mean(loss)
+            kl = np.mean(kl)
+            entropy = np.mean(entropy)
+            sgd_end = time.time()
+            print(
+                "{:>15}{:15.5e}{:15.5e}{:15.5e}".format(i, loss, kl, entropy))
+
+            values = []
+            if i == config["num_sgd_iter"] - 1:
+                metric_prefix = "policy_gradient/sgd/final_iter/"
+                values.append(tf.Summary.Value(
+                    tag=metric_prefix + "kl_coeff",
+                    simple_value=self.kl_coeff))
+            else:
+                metric_prefix = "policy_gradient/sgd/intermediate_iters/"
+            values.extend([
+                tf.Summary.Value(
+                    tag=metric_prefix + "mean_entropy",
+                    simple_value=entropy),
+                tf.Summary.Value(
+                    tag=metric_prefix + "mean_loss",
+                    simple_value=loss),
+                tf.Summary.Value(
+                    tag=metric_prefix + "mean_kl",
+                    simple_value=kl)])
+            if write_tf_logs:
+                sgd_stats = tf.Summary(value=values)
+                file_writer.add_summary(sgd_stats, self.global_step)
+            self.global_step += 1
+            sgd_time += sgd_end - sgd_start
+
 
 if __name__ == "__main__":
     train()

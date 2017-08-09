@@ -43,9 +43,6 @@ class ResNet(object):
 
         self._extra_train_ops = []
 
-    def build_loss(images, labels): 
-        return self.costs
-
     # Dont need this?
     # def build_graph(self):
     #     """Build a whole graph for the model."""
@@ -62,11 +59,11 @@ class ResNet(object):
         """Map a stride scalar to the stride array for tf.nn.conv2d."""
         return [1, stride, stride, 1]
 
-    def _build_model(self):
+    def _build_model(images, labels):
         """Build the core model within the graph."""
 
         with tf.variable_scope('init'):
-            x = self._conv('init_conv', self._images, 3, 3, 16,
+            x = self._conv('init_conv', images, 3, 3, 16,
                            self._stride_arr(1))
 
         strides = [1, 2, 2]
@@ -115,7 +112,7 @@ class ResNet(object):
 
         with tf.variable_scope('costs'):
             xent = tf.nn.softmax_cross_entropy_with_logits(
-                logits=logits, labels=self.labels)
+                logits=logits, labels=labels)
             self.cost = tf.reduce_mean(xent, name='xent')
             self.cost += self._decay()
 
